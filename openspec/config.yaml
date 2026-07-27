@@ -8,30 +8,56 @@ context: |
   separadas por hogar).
 
   Funciones principales:
-  1. Sorteo semanal de tareas: cada semana se asignan aleatoriamente las tareas
-     del hogar entre los integrantes, respetando estas reglas de negocio:
-     - Tareas "fijas": algunas tareas siempre las hace la misma persona (ej. quien
-       paga las cuentas). Estas tareas NO entran al sorteo aleatorio y no cuentan
-       en el balance de carga del resto de tareas.
-     - Tareas "rotativas": el resto de las tareas se reparte cada semana entre los
-       integrantes de forma aleatoria pero ponderada por edad (adultos asumen más
-       carga que niños/adolescentes) y buscando balancear la carga acumulada en el
-       tiempo (quien recibió menos carga en semanas anteriores tiene más
-       probabilidad de recibir tareas la próxima semana).
-     - El algoritmo de sorteo vive en la capa de API de Next.js (no hay backend
-       aparte). Debe ser determinista dado un seed para poder testearlo.
+  1. Asignación de tareas por periodo (disparada manualmente, NO automática/cron):
+     un integrante presiona un botón "Asignar tareas", define el periodo (fecha
+     inicio/fin) y ANTES de ejecutar el sorteo puede revisar/editar, para ese
+     periodo puntual, qué tareas son "fijas" (y de quién) y cuáles quedan como
+     "variables" (esto parte de un valor por defecto por tarea, pero es editable
+     periodo a periodo). Reglas de negocio del sorteo:
+     - Tareas "fijas" (para ese periodo): siempre las hace la misma persona. Estas
+       tareas NO entran al sorteo aleatorio y no cuentan en el balance de carga
+       del resto de tareas.
+     - Tareas "variables": se reparten en cada periodo de forma aleatoria pero
+       ponderada por edad (adultos asumen más carga que niños/adolescentes) y
+       buscando balancear la carga acumulada en el tiempo (quien recibió menos
+       carga en periodos anteriores tiene más probabilidad de recibir tareas).
+     - Cada tarea variable recibe una única persona asignada para TODO el periodo
+       (ej. quien cocina el desayuno lo hace todos los días de ese periodo; no hay
+       rotación día a día dentro del mismo periodo).
+     - Las tareas "de una vez por periodo" (barrer, trapear, ruta del popo,
+       organizar zonas comunes, etc., en contraste con tareas diarias como
+       cocinar) también reciben, como parte del sorteo, un día específico dentro
+       del periodo para poder ubicarlas en el calendario.
+     - El algoritmo de asignación vive en la capa de API de Next.js (no hay
+       backend aparte). Debe ser determinista dado un seed para poder testearlo.
   2. Calendario semanal: vista de lunes a domingo mostrando, por día, qué tarea le
-     corresponde a quién. Debe ser clara y visual (pensada para mostrarse en un
+     corresponde a quién, a partir del resultado de la asignación del periodo
+     vigente. Debe ser clara y visual (pensada para mostrarse en un
      refrigerador/tablet o revisarse desde el celular).
+  3. Gestión (CRUD): pantalla para crear, editar y eliminar integrantes (nombre,
+     edad) y tareas (nombre, si es diaria, si es fija por defecto y de quién,
+     peso/dificultad opcional).
 
-  Modelo de dominio (un solo hogar, sin autenticación por cuentas):
-  - members: integrantes del hogar (nombre, edad, foto/avatar opcional).
-  - tasks: catálogo de tareas del hogar (nombre, si es "fija" y de quién, día(s)
-    o frecuencia esperada, peso/dificultad opcional).
-  - assignments: asignación resultante de una tarea a un integrante en una semana
-    y día determinados (histórico, usado también para el balance acumulado).
+  Modelo de dominio (un solo hogar, sin autenticación por cuentas; ver
+  supabase/schema.sql para el detalle):
+  - members: integrantes del hogar (nombre, edad).
+  - tasks: catálogo de tareas del hogar (nombre, si es diaria, si es fija por
+    defecto y de quién, peso/dificultad opcional).
+  - periods: cada ciclo de asignación definido manualmente (fecha inicio/fin,
+    estado draft/assigned).
+  - period_task_settings: snapshot editable por periodo de qué tareas son fijas
+    y de quién (lo que se revisa/edita antes de correr el sorteo).
+  - assignments: asignación resultante de una tarea a un integrante en un
+    periodo (y día, para tareas de una vez por periodo). Histórico, usado
+    también para el balance acumulado.
   No hay login: se entra directo a la app y cada integrante simplemente elige su
   perfil (como un selector de perfil estilo Netflix), sin contraseñas.
+
+  Seguridad: nunca hardcodear secretos/keys en el código; toda credencial vive
+  en variables de entorno server-side. La Supabase service role key (server-side
+  únicamente) nunca se expone al cliente ni se marca como NEXT_PUBLIC_. RLS
+  habilitado en todas las tablas; el cliente nunca habla directo con Supabase,
+  siempre a través de la capa de API de Next.js.
 
   Stack técnico:
   - Next.js (App Router) desplegado en Vercel.
@@ -55,8 +81,9 @@ rules:
   proposal:
     - Mantener el proposal enfocado en una sola función (sorteo o calendario), no mezclar ambas en un mismo change salvo que el usuario lo pida explícitamente.
   design:
-    - Especificar siempre el esquema de tablas de Supabase involucradas (nombre, columnas clave, relaciones) cuando el change toque el modelo de datos.
+    - Especificar siempre el esquema de tablas de Supabase involucradas (nombre, columnas clave, relaciones) cuando el change toque el modelo de datos, y si requiere cambios a supabase/schema.sql.
     - Detallar el algoritmo de sorteo/balance en pseudocódigo cuando el change lo modifique, incluyendo cómo se pondera edad y carga acumulada.
+    - Confirmar explícitamente que ninguna credencial (service role key u otra) queda expuesta al cliente cuando el change toque acceso a Supabase.
   tasks:
     - Incluir un paso explícito de verificación con el skill `vercel-react-best-practices` para cualquier tarea que cree o modifique componentes/páginas de Next.js.
     - Separar tareas de "capa de datos/API" de tareas de "UI" cuando ambas estén presentes.
