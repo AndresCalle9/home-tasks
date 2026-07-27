@@ -1,0 +1,62 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+context: |
+  Producto: "Home Tasks" - app web para repartir las tareas del hogar entre los
+  integrantes de una sola familia (no multi-tenant, no hay concepto de cuentas
+  separadas por hogar).
+
+  Funciones principales:
+  1. Sorteo semanal de tareas: cada semana se asignan aleatoriamente las tareas
+     del hogar entre los integrantes, respetando estas reglas de negocio:
+     - Tareas "fijas": algunas tareas siempre las hace la misma persona (ej. quien
+       paga las cuentas). Estas tareas NO entran al sorteo aleatorio y no cuentan
+       en el balance de carga del resto de tareas.
+     - Tareas "rotativas": el resto de las tareas se reparte cada semana entre los
+       integrantes de forma aleatoria pero ponderada por edad (adultos asumen más
+       carga que niños/adolescentes) y buscando balancear la carga acumulada en el
+       tiempo (quien recibió menos carga en semanas anteriores tiene más
+       probabilidad de recibir tareas la próxima semana).
+     - El algoritmo de sorteo vive en la capa de API de Next.js (no hay backend
+       aparte). Debe ser determinista dado un seed para poder testearlo.
+  2. Calendario semanal: vista de lunes a domingo mostrando, por día, qué tarea le
+     corresponde a quién. Debe ser clara y visual (pensada para mostrarse en un
+     refrigerador/tablet o revisarse desde el celular).
+
+  Modelo de dominio (un solo hogar, sin autenticación por cuentas):
+  - members: integrantes del hogar (nombre, edad, foto/avatar opcional).
+  - tasks: catálogo de tareas del hogar (nombre, si es "fija" y de quién, día(s)
+    o frecuencia esperada, peso/dificultad opcional).
+  - assignments: asignación resultante de una tarea a un integrante en una semana
+    y día determinados (histórico, usado también para el balance acumulado).
+  No hay login: se entra directo a la app y cada integrante simplemente elige su
+  perfil (como un selector de perfil estilo Netflix), sin contraseñas.
+
+  Stack técnico:
+  - Next.js (App Router) desplegado en Vercel.
+  - Sin backend dedicado: toda la lógica (sorteo, balance, consultas) vive en la
+    capa de API de Next.js (route handlers / server actions), no en el cliente.
+  - Supabase como base de datos (Postgres), acceso vía API routes / server
+    actions usando las credenciales en `.env` (no exponer la key de servicio al
+    cliente si en algún momento se agrega).
+  - Package manager: npm.
+  - Idioma de la interfaz: español. Código, nombres de variables/funciones,
+    comentarios y commits: en inglés (convención de desarrollo estándar).
+  - Al implementar o revisar componentes de React/Next.js, seguir el skill
+    `vercel-react-best-practices` (patrones de rendimiento de Vercel Engineering).
+
+  Fuera de alcance por ahora: multi-hogar, autenticación con contraseña,
+  notificaciones push, apps móviles nativas.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+rules:
+  proposal:
+    - Mantener el proposal enfocado en una sola función (sorteo o calendario), no mezclar ambas en un mismo change salvo que el usuario lo pida explícitamente.
+  design:
+    - Especificar siempre el esquema de tablas de Supabase involucradas (nombre, columnas clave, relaciones) cuando el change toque el modelo de datos.
+    - Detallar el algoritmo de sorteo/balance en pseudocódigo cuando el change lo modifique, incluyendo cómo se pondera edad y carga acumulada.
+  tasks:
+    - Incluir un paso explícito de verificación con el skill `vercel-react-best-practices` para cualquier tarea que cree o modifique componentes/páginas de Next.js.
+    - Separar tareas de "capa de datos/API" de tareas de "UI" cuando ambas estén presentes.
