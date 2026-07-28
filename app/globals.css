@@ -1,0 +1,150 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-heading: var(--font-display);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+  Home Tasks palette: a fridge chore chart, digitized. Soft sage "paper"
+  background, one deep pine accent for actions, warm line/border tone.
+  Per-person tagging colors live separately, see --person-1..5 below.
+*/
+:root {
+  --background: #eef0e6;
+  --foreground: #23291f;
+  --card: #fbfaf4;
+  --card-foreground: #23291f;
+  --popover: #fbfaf4;
+  --popover-foreground: #23291f;
+  --primary: #2c6b54;
+  --primary-foreground: #f7f8f2;
+  --secondary: #e3e6d6;
+  --secondary-foreground: #23291f;
+  --muted: #e3e6d6;
+  --muted-foreground: #5b6155;
+  --accent: #dde8e0;
+  --accent-foreground: #224636;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #d9dbcb;
+  --input: #d9dbcb;
+  --ring: #2c6b54;
+  --chart-1: #c98a2b;
+  --chart-2: #3e7cb1;
+  --chart-3: #bf5b3c;
+  --chart-4: #5f8f52;
+  --chart-5: #8c5a8a;
+  --radius: 0.75rem;
+  --sidebar: #e3e6d6;
+  --sidebar-foreground: #23291f;
+  --sidebar-primary: #2c6b54;
+  --sidebar-primary-foreground: #f7f8f2;
+  --sidebar-accent: #dde8e0;
+  --sidebar-accent-foreground: #224636;
+  --sidebar-border: #d9dbcb;
+  --sidebar-ring: #2c6b54;
+
+  /* Per-person tagging colors (household members), used as small accents:
+     avatar chips, a task card's left-edge tab. Assigned by index, not tied
+     to any single person's identity. */
+  --person-1: #c98a2b; /* amber */
+  --person-2: #3e7cb1; /* denim */
+  --person-3: #bf5b3c; /* terracotta */
+  --person-4: #5f8f52; /* moss */
+  --person-5: #8c5a8a; /* plum */
+}
+
+.dark {
+  --background: #1a201a;
+  --foreground: #edefe6;
+  --card: #232920;
+  --card-foreground: #edefe6;
+  --popover: #232920;
+  --popover-foreground: #edefe6;
+  --primary: #55a684;
+  --primary-foreground: #10251c;
+  --secondary: #2b3226;
+  --secondary-foreground: #edefe6;
+  --muted: #2b3226;
+  --muted-foreground: #a9ae9e;
+  --accent: #2c3a2f;
+  --accent-foreground: #bfe2cd;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: #333a2d;
+  --input: #333a2d;
+  --ring: #55a684;
+  --chart-1: #d9a441;
+  --chart-2: #6ba3d1;
+  --chart-3: #d17c5a;
+  --chart-4: #7fae70;
+  --chart-5: #ab7ea8;
+  --sidebar: #202620;
+  --sidebar-foreground: #edefe6;
+  --sidebar-primary: #55a684;
+  --sidebar-primary-foreground: #10251c;
+  --sidebar-accent: #2c3a2f;
+  --sidebar-accent-foreground: #bfe2cd;
+  --sidebar-border: #333a2d;
+  --sidebar-ring: #55a684;
+
+  --person-1: #d9a441;
+  --person-2: #6ba3d1;
+  --person-3: #d17c5a;
+  --person-4: #7fae70;
+  --person-5: #ab7ea8;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
