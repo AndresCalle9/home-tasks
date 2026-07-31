@@ -1,9 +1,4 @@
-# task-config-view Specification
-
-## Purpose
-TBD - created by archiving change ui-shell-mockup. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Read-Only Members List
 The system SHALL display, on the "Configuración" tab, the household's real
