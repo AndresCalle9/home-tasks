@@ -130,3 +130,24 @@ export function getWeekSchedule(): DaySchedule[] {
     return { dayOfWeek, dayName, items };
   });
 }
+
+export type PersonGroup = {
+  member: Member;
+  items: Array<{ task: Task; isFixed: boolean }>;
+};
+
+// Same day.items, regrouped by responsible member (in member-list order,
+// matching the person-color assignment elsewhere) instead of task order.
+export function getPersonGroupsForDay(day: DaySchedule): PersonGroup[] {
+  const itemsByMemberId = new Map<string, PersonGroup["items"]>();
+
+  for (const { task, member, isFixed } of day.items) {
+    const items = itemsByMemberId.get(member.id) ?? [];
+    items.push({ task, isFixed });
+    itemsByMemberId.set(member.id, items);
+  }
+
+  return members
+    .filter((member) => itemsByMemberId.has(member.id))
+    .map((member) => ({ member, items: itemsByMemberId.get(member.id)! }));
+}

@@ -1,9 +1,4 @@
-# calendar-view Specification
-
-## Purpose
-TBD - created by archiving change ui-shell-mockup. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Weekly Calendar Grid
 The system SHALL display, on the "Calendario" tab, a Monday-to-Sunday
@@ -30,15 +25,3 @@ it.
 - **WHEN** a user clicks a day while a different day is already expanded
 - **THEN** the system SHALL collapse the previously expanded day and expand
   the newly clicked one, so at most one day is expanded at a time
-
-### Requirement: Assign Tasks Button Is a Non-Functional Placeholder
-The system SHALL display an "Asignar tareas" button on the "Calendario" tab
-that does not perform any real assignment, period definition, or Supabase/API
-call in this change.
-
-#### Scenario: Clicking the button in this change
-- **WHEN** a user clicks the "Asignar tareas" button
-- **THEN** the system SHALL NOT run any assignment logic and SHALL NOT call
-  Supabase or any API route
-- **THEN** the system MAY show a placeholder state (e.g. a disabled button or
-  an empty modal) instead of a functional flow
