@@ -25,6 +25,11 @@ export function TaskRow({
       <Badge variant="secondary" className="shrink-0 text-[10px]">
         {task.isDaily ? "Diaria" : "Puntual"}
       </Badge>
+      {task.minAge != null && (
+        <Badge variant="outline" className="shrink-0 text-[10px]">
+          {task.minAge}+
+        </Badge>
+      )}
       {fixedMember ? (
         <Badge
           className="shrink-0 gap-1 border-transparent text-[10px] text-white"

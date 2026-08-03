@@ -85,6 +85,16 @@ function parseWeight(formData: FormData): number | { error: string } {
   return weight;
 }
 
+function parseMinAge(formData: FormData): number | null | { error: string } {
+  const raw = formData.get("minAge");
+  if (raw === null || raw === "") return null;
+  const minAge = Number(raw);
+  if (!Number.isFinite(minAge) || minAge < 0) {
+    return { error: "La edad mínima debe ser un número mayor o igual a 0." };
+  }
+  return Math.floor(minAge);
+}
+
 function parseTaskInput(formData: FormData): TaskInput | { error: string } {
   const name = parseName(formData);
   if (typeof name !== "string") return name;
@@ -94,6 +104,9 @@ function parseTaskInput(formData: FormData): TaskInput | { error: string } {
 
   const weight = parseWeight(formData);
   if (typeof weight !== "number") return weight;
+
+  const minAge = parseMinAge(formData);
+  if (typeof minAge === "object" && minAge !== null) return minAge;
 
   const fixedMemberId = String(formData.get("defaultFixedMemberId") ?? "");
   if (defaultIsFixed && !fixedMemberId) {
@@ -108,6 +121,7 @@ function parseTaskInput(formData: FormData): TaskInput | { error: string } {
     weight,
     defaultIsFixed,
     defaultFixedMemberId: defaultIsFixed ? fixedMemberId : null,
+    minAge,
   };
 }
 

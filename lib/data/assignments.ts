@@ -47,7 +47,12 @@ export async function runAssignment(
   const seed = Math.floor(Math.random() * 2 ** 31);
   const results = assignPeriod(
     members.map((m) => ({ id: m.id, age: m.age })),
-    tasks.map((t) => ({ id: t.id, isDaily: t.isDaily, weight: t.weight })),
+    tasks.map((t) => ({
+      id: t.id,
+      isDaily: t.isDaily,
+      weight: t.weight,
+      minAge: t.minAge,
+    })),
     settings,
     historicalLoad,
     seed

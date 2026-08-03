@@ -22,6 +22,9 @@ create table tasks (
   weight numeric not null default 1 check (weight > 0),
   default_is_fixed boolean not null default false,
   default_fixed_member_id uuid references members(id),
+  -- null: no age restriction. Set: only members at or above this age are
+  -- eligible for this task in the assignment lottery.
+  min_age smallint check (min_age is null or min_age >= 0),
   created_at timestamptz not null default now(),
   constraint fixed_task_has_member
     check (default_is_fixed = false or default_fixed_member_id is not null)

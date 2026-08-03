@@ -91,6 +91,19 @@ export function TaskFormDialog({
             />
           </div>
 
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="task-min-age">Edad mínima (opcional)</Label>
+            <Input
+              id="task-min-age"
+              name="minAge"
+              type="number"
+              min={0}
+              step={1}
+              placeholder="Sin restricción"
+              defaultValue={task?.minAge ?? ""}
+            />
+          </div>
+
           <div className="flex items-center justify-between gap-2">
             <Label htmlFor="task-fixed">Es fija (siempre la misma persona)</Label>
             <Switch
@@ -108,10 +121,15 @@ export function TaskFormDialog({
               <Select
                 name="defaultFixedMemberId"
                 defaultValue={task?.defaultFixedMemberId ?? undefined}
+                items={Object.fromEntries(members.map((m) => [m.id, m.name]))}
                 required
               >
                 <SelectTrigger id="task-fixed-member" className="w-full">
-                  <SelectValue placeholder="Elige un integrante" />
+                  <SelectValue placeholder="Elige un integrante">
+                    {(value: string | null) =>
+                      members.find((m) => m.id === value)?.name ?? ""
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {members.map((member) => (

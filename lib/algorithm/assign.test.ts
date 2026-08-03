@@ -9,17 +9,28 @@ const members = [
   { id: "child-1", age: 10 },
 ];
 
+// 5 variable tasks for 4 members leaves enough slack for the
+// minimum-guarantee pass to actually give everyone something, while
+// t-cooking's minAge excludes child-1 (and, at 18, teen-1 too).
 const tasks = [
-  { id: "t-fixed", isDaily: false, weight: 1 },
-  { id: "t-var-daily", isDaily: true, weight: 1 },
-  { id: "t-var-once", isDaily: false, weight: 2 },
+  { id: "t-fixed", isDaily: false, weight: 1, minAge: null },
+  { id: "t-var-daily", isDaily: true, weight: 1, minAge: null },
+  { id: "t-var-once", isDaily: false, weight: 2, minAge: null },
+  { id: "t-var-2", isDaily: true, weight: 1, minAge: null },
+  { id: "t-var-3", isDaily: false, weight: 1, minAge: null },
+  { id: "t-cooking", isDaily: true, weight: 1, minAge: 14 },
 ];
 
 const settings = [
   { taskId: "t-fixed", isFixed: true, fixedMemberId: "adult-1" },
   { taskId: "t-var-daily", isFixed: false, fixedMemberId: null },
   { taskId: "t-var-once", isFixed: false, fixedMemberId: null },
+  { taskId: "t-var-2", isFixed: false, fixedMemberId: null },
+  { taskId: "t-var-3", isFixed: false, fixedMemberId: null },
+  { taskId: "t-cooking", isFixed: false, fixedMemberId: null },
 ];
+
+const SEEDS = Array.from({ length: 50 }, (_, i) => i);
 
 describe("ageWeight", () => {
   it("gives adults full weight, teens reduced, children the least", () => {
@@ -58,7 +69,7 @@ describe("assignPeriod", () => {
     // Running many seeds should still let adult-1 win at least one variable
     // task when history starts empty for everyone.
     const wins = new Set<string>();
-    for (let seed = 0; seed < 30; seed++) {
+    for (const seed of SEEDS) {
       const result = assignPeriod(members, tasks, settings, {}, seed);
       const variableWinners = result
         .filter((r) => !r.isFixed)
@@ -85,6 +96,46 @@ describe("assignPeriod", () => {
     expect(once.dayOfWeek).toBeLessThanOrEqual(6);
     expect(fixedOnce.dayOfWeek).toBeGreaterThanOrEqual(0);
     expect(fixedOnce.dayOfWeek).toBeLessThanOrEqual(6);
+  });
+
+  it("never assigns a task to a member below its minAge", () => {
+    for (const seed of SEEDS) {
+      const result = assignPeriod(members, tasks, settings, {}, seed);
+      const cooking = result.find((r) => r.taskId === "t-cooking")!;
+      expect(cooking.memberId).not.toBe("child-1");
+    }
+  });
+
+  it("falls back to the oldest member when no one meets minAge", () => {
+    const strictTasks = tasks.map((t) =>
+      t.id === "t-cooking" ? { ...t, minAge: 60 } : t
+    );
+    for (const seed of SEEDS) {
+      const result = assignPeriod(members, strictTasks, settings, {}, seed);
+      const cooking = result.find((r) => r.taskId === "t-cooking")!;
+      expect(cooking.memberId).toBe("adult-2"); // the oldest, at 50
+    }
+  });
+
+  it("guarantees every eligible member at least one variable task", () => {
+    for (const seed of SEEDS) {
+      const result = assignPeriod(members, tasks, settings, {}, seed);
+      const variableWinners = new Set(
+        result.filter((r) => !r.isFixed).map((r) => r.memberId)
+      );
+      for (const member of members) {
+        expect(variableWinners.has(member.id)).toBe(true);
+      }
+    }
+  });
+
+  it("keeps exactly one assignment per task after the guarantee pass", () => {
+    for (const seed of SEEDS) {
+      const result = assignPeriod(members, tasks, settings, {}, seed);
+      const taskIds = result.map((r) => r.taskId);
+      expect(new Set(taskIds).size).toBe(taskIds.length);
+      expect(taskIds.length).toBe(tasks.length);
+    }
   });
 });
 

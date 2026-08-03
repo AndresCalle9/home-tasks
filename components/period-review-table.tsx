@@ -33,6 +33,7 @@ export function PeriodReviewTable({
   const [fixedByTask, setFixedByTask] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(initialRows.map((row) => [row.taskId, row.isFixed]))
   );
+  const memberItems = Object.fromEntries(members.map((m) => [m.id, m.name]));
 
   return (
     <form action={action} className="flex flex-col gap-4">
@@ -70,10 +71,15 @@ export function PeriodReviewTable({
                 <Select
                   name={`fixedMemberId-${row.taskId}`}
                   defaultValue={row.fixedMemberId ?? undefined}
+                  items={memberItems}
                   required
                 >
                   <SelectTrigger className="w-full sm:w-40">
-                    <SelectValue placeholder="Responsable" />
+                    <SelectValue placeholder="Responsable">
+                      {(value: string | null) =>
+                        members.find((m) => m.id === value)?.name ?? ""
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {members.map((member) => (

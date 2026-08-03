@@ -9,6 +9,7 @@ export type Task = {
   weight: number;
   defaultIsFixed: boolean;
   defaultFixedMemberId: string | null;
+  minAge: number | null;
 };
 
 type TaskRow = {
@@ -18,6 +19,7 @@ type TaskRow = {
   weight: number;
   default_is_fixed: boolean;
   default_fixed_member_id: string | null;
+  min_age: number | null;
 };
 
 function toTask(row: TaskRow): Task {
@@ -28,6 +30,7 @@ function toTask(row: TaskRow): Task {
     weight: row.weight,
     defaultIsFixed: row.default_is_fixed,
     defaultFixedMemberId: row.default_fixed_member_id,
+    minAge: row.min_age,
   };
 }
 
@@ -35,7 +38,7 @@ export async function listTasks(): Promise<Task[]> {
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, name, is_daily, weight, default_is_fixed, default_fixed_member_id"
+      "id, name, is_daily, weight, default_is_fixed, default_fixed_member_id, min_age"
     )
     .order("created_at", { ascending: true });
 
@@ -49,6 +52,7 @@ export type TaskInput = {
   weight: number;
   defaultIsFixed: boolean;
   defaultFixedMemberId: string | null;
+  minAge: number | null;
 };
 
 export async function createTask(input: TaskInput): Promise<MutationResult> {
@@ -58,6 +62,7 @@ export async function createTask(input: TaskInput): Promise<MutationResult> {
     weight: input.weight,
     default_is_fixed: input.defaultIsFixed,
     default_fixed_member_id: input.defaultFixedMemberId,
+    min_age: input.minAge,
   });
   if (error) return { error: mapDbError(error, "tarea") };
   return { ok: true };
@@ -75,6 +80,7 @@ export async function updateTask(
       weight: input.weight,
       default_is_fixed: input.defaultIsFixed,
       default_fixed_member_id: input.defaultFixedMemberId,
+      min_age: input.minAge,
     })
     .eq("id", id);
   if (error) return { error: mapDbError(error, "tarea") };
