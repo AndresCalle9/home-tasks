@@ -1,7 +1,11 @@
+import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
-// Server-only. Uses the service role key, which bypasses RLS — never import
-// this file from a "use client" component or re-export the client itself.
+// Uses the service role key, which bypasses RLS — never import this file
+// from a "use client" component or re-export the client itself. The
+// "server-only" import above makes an accidental client-bundle import fail
+// at build time instead of throwing this file's env-var check in the
+// browser at runtime.
 const supabaseUrl = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

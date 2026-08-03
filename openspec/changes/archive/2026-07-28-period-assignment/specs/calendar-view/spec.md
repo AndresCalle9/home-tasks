@@ -1,9 +1,4 @@
-# calendar-view Specification
-
-## Purpose
-TBD - created by archiving change ui-shell-mockup. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Weekly Calendar Grid
 The system SHALL display, on the "Calendario" tab, a Monday-to-Sunday
@@ -39,6 +34,16 @@ empty state instead of the accordion.
   `assigned`
 - **THEN** the system SHALL show an empty state explaining that no period
   has been assigned yet, instead of the day accordion
+
+## REMOVED Requirements
+
+### Requirement: Assign Tasks Button Is a Non-Functional Placeholder
+**Reason**: the assignment flow now exists; the button is no longer a
+placeholder.
+**Migration**: see the new "Assign Tasks Button Opens the Assignment Flow"
+requirement below.
+
+## ADDED Requirements
 
 ### Requirement: Assign Tasks Button Opens the Assignment Flow
 The system SHALL display an "Asignar tareas" button on the "Calendario" tab

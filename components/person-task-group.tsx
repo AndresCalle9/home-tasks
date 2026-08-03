@@ -1,9 +1,15 @@
 import { Badge } from "@/components/ui/badge";
-import { personColorVar } from "@/lib/person-color";
-import type { PersonGroup } from "@/lib/mock-data";
+import { personColorVarByIndex } from "@/lib/person-color";
+import type { PersonGroup } from "@/lib/calendar-schedule";
 
-export function PersonTaskGroup({ group }: { group: PersonGroup }) {
-  const color = personColorVar(group.member.id);
+export function PersonTaskGroup({
+  group,
+  memberIndex,
+}: {
+  group: PersonGroup;
+  memberIndex: number;
+}) {
+  const color = personColorVarByIndex(memberIndex);
   const initial = group.member.name.charAt(0).toUpperCase();
 
   return (

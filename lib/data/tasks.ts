@@ -1,3 +1,4 @@
+import "server-only";
 import { supabase } from "@/lib/supabase/server-client";
 import { mapDbError, type MutationResult } from "@/lib/data/errors";
 

@@ -32,6 +32,10 @@ create table periods (
   start_date date not null,
   end_date date not null check (end_date >= start_date),
   status text not null default 'draft' check (status in ('draft', 'assigned')),
+  -- Seed for the deterministic assignment algorithm. Regenerated on every
+  -- reroll so re-running the sorteo for the same period gives a different
+  -- (but still reproducible) result.
+  seed bigint not null default ((extract(epoch from clock_timestamp()) * 1000)::bigint),
   created_at timestamptz not null default now()
 );
 
