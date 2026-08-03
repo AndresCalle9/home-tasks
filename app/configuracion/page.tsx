@@ -5,6 +5,11 @@ import { TaskRow } from "@/components/task-row";
 import { listMembers } from "@/lib/data/members";
 import { listTasks } from "@/lib/data/tasks";
 
+// This is a live data-management screen, not static content — it should
+// never be prerendered at build time (which would require Supabase to be
+// reachable during `next build`, and would bake in a build-time snapshot).
+export const dynamic = "force-dynamic";
+
 export default async function ConfiguracionPage() {
   const [members, tasks] = await Promise.all([listMembers(), listTasks()]);
   const memberIndexById = new Map(members.map((m, i) => [m.id, i]));
