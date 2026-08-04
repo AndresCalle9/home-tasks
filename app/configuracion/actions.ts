@@ -85,6 +85,11 @@ function parseMinAge(formData: FormData): number | null | { error: string } {
   return Math.floor(minAge);
 }
 
+function parseDayGroup(formData: FormData): string | null {
+  const raw = String(formData.get("dayGroup") ?? "").trim();
+  return raw || null;
+}
+
 function parseTaskInput(formData: FormData): TaskInput | { error: string } {
   const name = parseName(formData);
   if (typeof name !== "string") return name;
@@ -94,6 +99,8 @@ function parseTaskInput(formData: FormData): TaskInput | { error: string } {
 
   const minAge = parseMinAge(formData);
   if (typeof minAge === "object" && minAge !== null) return minAge;
+
+  const dayGroup = parseDayGroup(formData);
 
   const fixedMemberId = String(formData.get("defaultFixedMemberId") ?? "");
   if (defaultIsFixed && !fixedMemberId) {
@@ -108,6 +115,7 @@ function parseTaskInput(formData: FormData): TaskInput | { error: string } {
     defaultIsFixed,
     defaultFixedMemberId: defaultIsFixed ? fixedMemberId : null,
     minAge,
+    dayGroup: isDaily ? null : dayGroup,
   };
 }
 

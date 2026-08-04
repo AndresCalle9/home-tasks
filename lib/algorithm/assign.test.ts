@@ -13,12 +13,12 @@ const members = [
 // minimum-guarantee pass to actually give everyone something, while
 // t-cooking's minAge excludes child-1 (and, at 18, teen-1 too).
 const tasks = [
-  { id: "t-fixed", isDaily: false, minAge: null },
-  { id: "t-var-daily", isDaily: true, minAge: null },
-  { id: "t-var-once", isDaily: false, minAge: null },
-  { id: "t-var-2", isDaily: true, minAge: null },
-  { id: "t-var-3", isDaily: false, minAge: null },
-  { id: "t-cooking", isDaily: true, minAge: 14 },
+  { id: "t-fixed", isDaily: false, minAge: null, dayGroup: null },
+  { id: "t-var-daily", isDaily: true, minAge: null, dayGroup: null },
+  { id: "t-var-once", isDaily: false, minAge: null, dayGroup: null },
+  { id: "t-var-2", isDaily: true, minAge: null, dayGroup: null },
+  { id: "t-var-3", isDaily: false, minAge: null, dayGroup: null },
+  { id: "t-cooking", isDaily: true, minAge: 14, dayGroup: null },
 ];
 
 const settings = [
@@ -116,16 +116,23 @@ describe("assignPeriod", () => {
     }
   });
 
-  it("assigns a dayOfWeek in range for non-daily tasks and null for daily tasks", () => {
-    const result = assignPeriod(members, tasks, settings, {}, 99);
-    const daily = result.find((r) => r.taskId === "t-var-daily")!;
-    const once = result.find((r) => r.taskId === "t-var-once")!;
-    const fixedOnce = result.find((r) => r.taskId === "t-fixed")!;
-    expect(daily.dayOfWeek).toBeNull();
-    expect(once.dayOfWeek).toBeGreaterThanOrEqual(0);
-    expect(once.dayOfWeek).toBeLessThanOrEqual(6);
-    expect(fixedOnce.dayOfWeek).toBeGreaterThanOrEqual(0);
-    expect(fixedOnce.dayOfWeek).toBeLessThanOrEqual(6);
+  it("assigns 3 distinct days for non-daily tasks and null for daily tasks", () => {
+    for (const seed of SEEDS) {
+      const result = assignPeriod(members, tasks, settings, {}, seed);
+      const daily = result.find((r) => r.taskId === "t-var-daily")!;
+      const once = result.find((r) => r.taskId === "t-var-once")!;
+      const fixedOnce = result.find((r) => r.taskId === "t-fixed")!;
+      expect(daily.dayOfWeek).toBeNull();
+      for (const r of [once, fixedOnce]) {
+        expect(r.dayOfWeek).not.toBeNull();
+        expect(r.dayOfWeek!.length).toBe(3);
+        expect(new Set(r.dayOfWeek!).size).toBe(3);
+        for (const day of r.dayOfWeek!) {
+          expect(day).toBeGreaterThanOrEqual(0);
+          expect(day).toBeLessThanOrEqual(6);
+        }
+      }
+    }
   });
 
   it("never assigns a task to a member below its minAge", () => {
@@ -186,11 +193,13 @@ describe("assignPeriod", () => {
       id: `open-${i}`,
       isDaily: i % 2 === 0,
       minAge: null,
+      dayGroup: null,
     }));
     const cookingTasks = Array.from({ length: 3 }, (_, i) => ({
       id: `cooking-${i}`,
       isDaily: true,
       minAge: 14,
+      dayGroup: null,
     }));
     const allTasks = [...openTasks, ...cookingTasks];
     const allSettings = allTasks.map((t) => ({
@@ -236,11 +245,13 @@ describe("assignPeriod", () => {
       id,
       isDaily: false,
       minAge: null,
+      dayGroup: null,
     }));
     const variableTasks = Array.from({ length: 22 }, (_, i) => ({
       id: `var-${i}`,
       isDaily: i % 2 === 0,
       minAge: i < 3 ? 14 : null, // a few cooking-like tasks exclude h5 (age 10)
+      dayGroup: null,
     }));
     const allTasks = [...fixedTasks, ...variableTasks];
     const allSettings = allTasks.map((t) =>
@@ -262,6 +273,102 @@ describe("assignPeriod", () => {
       const values = householdMembers.map((m) => counts[m.id] ?? 0);
       expect(Math.max(...values) - Math.min(...values)).toBeLessThanOrEqual(1);
     }
+  });
+
+  it("gives tasks sharing a dayGroup the identical 3 days, even when different members end up owning them", () => {
+    // "wash" and "dry" mirror Lavar ropa / Extender ropa: same dayGroup, but
+    // each is independently up for the lottery, so they can land on
+    // different members. Grouping only ties days, never people.
+    const laundryMembers = [
+      { id: "l1", age: 34 },
+      { id: "l2", age: 50 },
+      { id: "l3", age: 34 },
+    ];
+    const laundryTasks = [
+      { id: "wash", isDaily: false, minAge: null, dayGroup: "laundry" },
+      { id: "dry", isDaily: false, minAge: null, dayGroup: "laundry" },
+      { id: "fold", isDaily: false, minAge: null, dayGroup: "laundry" },
+      { id: "unrelated", isDaily: false, minAge: null, dayGroup: null },
+    ];
+    const laundrySettings = laundryTasks.map((t) => ({
+      taskId: t.id,
+      isFixed: false,
+      fixedMemberId: null,
+    }));
+
+    let sawDifferentMembers = false;
+    let sawUnrelatedWithDifferentDays = false;
+    for (const seed of SEEDS) {
+      const result = assignPeriod(
+        laundryMembers,
+        laundryTasks,
+        laundrySettings,
+        {},
+        seed
+      );
+      const wash = result.find((r) => r.taskId === "wash")!;
+      const dry = result.find((r) => r.taskId === "dry")!;
+      const fold = result.find((r) => r.taskId === "fold")!;
+      const unrelated = result.find((r) => r.taskId === "unrelated")!;
+
+      // Same group ⇒ always identical days, with certainty.
+      expect(dry.dayOfWeek).toEqual(wash.dayOfWeek);
+      expect(fold.dayOfWeek).toEqual(wash.dayOfWeek);
+
+      if (
+        wash.memberId !== dry.memberId ||
+        wash.memberId !== fold.memberId
+      ) {
+        sawDifferentMembers = true;
+      }
+      if (
+        JSON.stringify(unrelated.dayOfWeek) !== JSON.stringify(wash.dayOfWeek)
+      ) {
+        sawUnrelatedWithDifferentDays = true;
+      }
+    }
+    // Confirms grouping doesn't accidentally force the same person onto
+    // every task in the group — only the days are shared.
+    expect(sawDifferentMembers).toBe(true);
+    // The ungrouped task isn't forced to share the laundry group's days —
+    // with independent draws it shouldn't match on every single seed (a
+    // one-off coincidence on any given seed is expected and fine).
+    expect(sawUnrelatedWithDifferentDays).toBe(true);
+  });
+
+  it("does not force ungrouped or differently-grouped tasks to share days", () => {
+    const soloMembers = [
+      { id: "s1", age: 34 },
+      { id: "s2", age: 50 },
+    ];
+    const soloTasks = [
+      { id: "solo-a", isDaily: false, minAge: null, dayGroup: null },
+      { id: "solo-b", isDaily: false, minAge: null, dayGroup: null },
+      { id: "group-x", isDaily: false, minAge: null, dayGroup: "x" },
+      { id: "group-y", isDaily: false, minAge: null, dayGroup: "y" },
+    ];
+    const soloSettings = soloTasks.map((t) => ({
+      taskId: t.id,
+      isFixed: false,
+      fixedMemberId: null,
+    }));
+
+    let sawDifferentDays = false;
+    for (const seed of SEEDS) {
+      const result = assignPeriod(
+        soloMembers,
+        soloTasks,
+        soloSettings,
+        {},
+        seed
+      );
+      const a = result.find((r) => r.taskId === "solo-a")!;
+      const b = result.find((r) => r.taskId === "solo-b")!;
+      if (!(a.dayOfWeek!.every((d) => b.dayOfWeek!.includes(d)))) {
+        sawDifferentDays = true;
+      }
+    }
+    expect(sawDifferentDays).toBe(true);
   });
 });
 

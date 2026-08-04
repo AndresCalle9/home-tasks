@@ -9,6 +9,7 @@ export type Task = {
   defaultIsFixed: boolean;
   defaultFixedMemberId: string | null;
   minAge: number | null;
+  dayGroup: string | null;
 };
 
 type TaskRow = {
@@ -18,6 +19,7 @@ type TaskRow = {
   default_is_fixed: boolean;
   default_fixed_member_id: string | null;
   min_age: number | null;
+  day_group: string | null;
 };
 
 function toTask(row: TaskRow): Task {
@@ -28,6 +30,7 @@ function toTask(row: TaskRow): Task {
     defaultIsFixed: row.default_is_fixed,
     defaultFixedMemberId: row.default_fixed_member_id,
     minAge: row.min_age,
+    dayGroup: row.day_group,
   };
 }
 
@@ -35,7 +38,7 @@ export async function listTasks(): Promise<Task[]> {
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, name, is_daily, default_is_fixed, default_fixed_member_id, min_age"
+      "id, name, is_daily, default_is_fixed, default_fixed_member_id, min_age, day_group"
     )
     .order("created_at", { ascending: true });
 
@@ -49,6 +52,7 @@ export type TaskInput = {
   defaultIsFixed: boolean;
   defaultFixedMemberId: string | null;
   minAge: number | null;
+  dayGroup: string | null;
 };
 
 export async function createTask(input: TaskInput): Promise<MutationResult> {
@@ -58,6 +62,7 @@ export async function createTask(input: TaskInput): Promise<MutationResult> {
     default_is_fixed: input.defaultIsFixed,
     default_fixed_member_id: input.defaultFixedMemberId,
     min_age: input.minAge,
+    day_group: input.dayGroup,
   });
   if (error) return { error: mapDbError(error, "tarea") };
   return { ok: true };
@@ -75,6 +80,7 @@ export async function updateTask(
       default_is_fixed: input.defaultIsFixed,
       default_fixed_member_id: input.defaultFixedMemberId,
       min_age: input.minAge,
+      day_group: input.dayGroup,
     })
     .eq("id", id);
   if (error) return { error: mapDbError(error, "tarea") };

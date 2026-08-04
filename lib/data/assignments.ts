@@ -48,6 +48,7 @@ export async function runAssignment(
       id: t.id,
       isDaily: t.isDaily,
       minAge: t.minAge,
+      dayGroup: t.dayGroup,
     })),
     settings,
     historicalTaskCount,
@@ -60,15 +61,38 @@ export async function runAssignment(
     .eq("period_id", periodId);
   if (deleteError) return { error: deleteError.message };
 
-  const { error: insertError } = await supabase.from("assignments").insert(
-    results.map((r) => ({
-      period_id: periodId,
-      task_id: r.taskId,
-      member_id: r.memberId,
-      day_of_week: r.dayOfWeek,
-      is_fixed: r.isFixed,
-    }))
+  // A non-daily task's dayOfWeek is an array of 3 days — expand into one
+  // row per day. A daily task's dayOfWeek is null — a single row.
+  type AssignmentRow = {
+    period_id: string;
+    task_id: string;
+    member_id: string;
+    day_of_week: number | null;
+    is_fixed: boolean;
+  };
+  const rows = results.flatMap((r): AssignmentRow[] =>
+    r.dayOfWeek == null
+      ? [
+          {
+            period_id: periodId,
+            task_id: r.taskId,
+            member_id: r.memberId,
+            day_of_week: null,
+            is_fixed: r.isFixed,
+          },
+        ]
+      : r.dayOfWeek.map((day) => ({
+          period_id: periodId,
+          task_id: r.taskId,
+          member_id: r.memberId,
+          day_of_week: day,
+          is_fixed: r.isFixed,
+        }))
   );
+
+  const { error: insertError } = await supabase
+    .from("assignments")
+    .insert(rows);
   if (insertError) return { error: insertError.message };
 
   const { error: periodError } = await supabase

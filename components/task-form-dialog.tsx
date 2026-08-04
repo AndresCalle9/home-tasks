@@ -38,6 +38,7 @@ export function TaskFormDialog({
   const [state, formAction, isPending] = useActionState(action, {});
   const [open, setOpen] = useState(false);
   const [isFixed, setIsFixed] = useState(task?.defaultIsFixed ?? false);
+  const [isDaily, setIsDaily] = useState(task?.isDaily ?? false);
   useCloseOnActionSuccess(state, setOpen);
 
   return (
@@ -75,7 +76,8 @@ export function TaskFormDialog({
               id="task-daily"
               name="isDaily"
               value="true"
-              defaultChecked={task?.isDaily ?? false}
+              checked={isDaily}
+              onCheckedChange={setIsDaily}
             />
           </div>
 
@@ -91,6 +93,22 @@ export function TaskFormDialog({
               defaultValue={task?.minAge ?? ""}
             />
           </div>
+
+          {!isDaily && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="task-day-group">Grupo de día (opcional)</Label>
+              <Input
+                id="task-day-group"
+                name="dayGroup"
+                placeholder="Sin grupo"
+                defaultValue={task?.dayGroup ?? ""}
+              />
+              <p className="text-xs text-muted-foreground">
+                Tareas con el mismo grupo siempre caen en los mismos 3 días
+                de la semana (ej. lavar y extender ropa).
+              </p>
+            </div>
+          )}
 
           <div className="flex items-center justify-between gap-2">
             <Label htmlFor="task-fixed">Es fija (siempre la misma persona)</Label>

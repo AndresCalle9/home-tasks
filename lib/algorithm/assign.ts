@@ -1,4 +1,8 @@
-import { mulberry32, pickDay, pickUniform } from "./rng";
+import { mulberry32, pickDistinctDays, pickUniform } from "./rng";
+
+// Once-per-period tasks occur this many days a week, always (not
+// configurable per task in this MVP).
+const DAYS_PER_WEEK_FOR_NON_DAILY_TASK = 3;
 
 export type AlgorithmMember = {
   id: string;
@@ -9,6 +13,7 @@ export type AlgorithmTask = {
   id: string;
   isDaily: boolean;
   minAge: number | null;
+  dayGroup: string | null;
 };
 
 export type PeriodTaskSetting = {
@@ -20,7 +25,7 @@ export type PeriodTaskSetting = {
 export type AssignmentResult = {
   taskId: string;
   memberId: string;
-  dayOfWeek: number | null;
+  dayOfWeek: number[] | null;
   isFixed: boolean;
 };
 
@@ -55,6 +60,24 @@ export function assignPeriod(
   );
   const results: AssignmentResult[] = [];
 
+  // Tasks sharing a non-null dayGroup always get the identical days;
+  // ungrouped tasks are their own singleton group (keyed by their own id).
+  // Shared across the fixed and variable loops below, so whichever task in
+  // a group is processed first draws the days and every other task in that
+  // group — fixed or variable — reuses them verbatim.
+  const dayGroupCache = new Map<string, number[]>();
+  function daysFor(task: AlgorithmTask): number[] | null {
+    if (task.isDaily) return null;
+    const groupKey = task.dayGroup ?? task.id;
+    if (!dayGroupCache.has(groupKey)) {
+      dayGroupCache.set(
+        groupKey,
+        pickDistinctDays(rng, DAYS_PER_WEEK_FOR_NON_DAILY_TASK)
+      );
+    }
+    return dayGroupCache.get(groupKey)!;
+  }
+
   const fixed: AlgorithmTask[] = [];
   const variable: AlgorithmTask[] = [];
   for (const task of tasks) {
@@ -68,7 +91,7 @@ export function assignPeriod(
     results.push({
       taskId: task.id,
       memberId: setting.fixedMemberId!,
-      dayOfWeek: task.isDaily ? null : pickDay(rng),
+      dayOfWeek: daysFor(task),
       isFixed: true,
     });
     // Fixed tasks never enter the lottery, but this period's fixed load
@@ -94,7 +117,7 @@ export function assignPeriod(
     results.push({
       taskId: task.id,
       memberId: winner.id,
-      dayOfWeek: task.isDaily ? null : pickDay(rng),
+      dayOfWeek: daysFor(task),
       isFixed: false,
     });
   }

@@ -24,6 +24,10 @@ create table tasks (
   -- null: no age restriction. Set: only members at or above this age are
   -- eligible for this task in the assignment lottery.
   min_age smallint check (min_age is null or min_age >= 0),
+  -- null: this task's days are independent of every other task's. Set:
+  -- every task sharing this same value always lands on the same 3 days
+  -- per period (e.g. washing and hanging laundry to dry on the same days).
+  day_group text,
   created_at timestamptz not null default now(),
   constraint fixed_task_has_member
     check (default_is_fixed = false or default_fixed_member_id is not null)
@@ -57,7 +61,10 @@ create table period_task_settings (
 
 -- Final assignment result for a period: who does each task.
 -- day_of_week is only set for non-daily tasks (0 = Monday ... 6 = Sunday);
--- daily tasks apply to every day of the period and leave it null.
+-- daily tasks apply to every day of the period and leave it null. A
+-- non-daily task now gets 3 rows (one per assigned day), all sharing the
+-- same task_id/member_id — hence the unique constraint includes
+-- day_of_week rather than being per (period_id, task_id) alone.
 create table assignments (
   id uuid primary key default gen_random_uuid(),
   period_id uuid not null references periods(id) on delete cascade,
@@ -66,7 +73,7 @@ create table assignments (
   day_of_week smallint check (day_of_week between 0 and 6),
   is_fixed boolean not null default false,
   created_at timestamptz not null default now(),
-  unique (period_id, task_id)
+  unique (period_id, task_id, day_of_week)
 );
 
 create index assignments_period_id_idx on assignments(period_id);

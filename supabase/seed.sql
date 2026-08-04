@@ -10,6 +10,10 @@
 --
 -- min_age defaults to 10 for every task, except the 3 "Cocinar" tasks
 -- (stove/knives), which default to 14. Adjust per task from Configuración.
+--
+-- Once-per-period tasks each get 3 days a week. "Lavar ropa", "Extender
+-- ropa", and "Doblar ropa" share day_group = 'laundry' so they always land
+-- on the same 3 days (you hang clothes to dry the same day you wash them).
 
 insert into members (name, age) values
   ('Lizeth', 34),
@@ -43,11 +47,13 @@ insert into tasks (name, is_daily, default_is_fixed, min_age) values
   ('Ruta del popo', true, false, 10),
   ('Regar jardines', true, false, 10);
 
--- Once-per-period tasks: get a specific day assigned as part of the sorteo.
+-- Once-per-period tasks: get 3 days a week assigned as part of the sorteo.
+insert into tasks (name, is_daily, default_is_fixed, min_age, day_group) values
+  ('Lavar ropa', false, false, 10, 'laundry'),
+  ('Extender ropa', false, false, 10, 'laundry'),
+  ('Doblar ropa', false, false, 10, 'laundry');
+
 insert into tasks (name, is_daily, default_is_fixed, min_age) values
-  ('Lavar ropa', false, false, 10),
-  ('Extender ropa', false, false, 10),
-  ('Doblar ropa', false, false, 10),
   ('Barrer', false, false, 10),
   ('Trapear', false, false, 10),
   ('Organizar zonas comunes internas', false, false, 10),

@@ -36,3 +36,13 @@ export function pickDay(rng: () => number): number {
 export function pickUniform<T>(rng: () => number, items: readonly T[]): T {
   return items[Math.floor(rng() * items.length)];
 }
+
+// `count` distinct days (0–6), ascending. Rejection sampling — cheap given
+// only 7 possible days and a small count.
+export function pickDistinctDays(rng: () => number, count: number): number[] {
+  const days = new Set<number>();
+  while (days.size < count) {
+    days.add(pickDay(rng));
+  }
+  return [...days].sort((a, b) => a - b);
+}
