@@ -45,27 +45,44 @@ describe("assignPeriod", () => {
     expect(runA).not.toEqual(runB);
   });
 
-  it("assigns fixed tasks to their configured member without entering the lottery", () => {
-    const result = assignPeriod(members, tasks, settings, {}, 7);
-    const fixed = result.find((r) => r.taskId === "t-fixed")!;
-    expect(fixed.memberId).toBe("adult-1");
-    expect(fixed.isFixed).toBe(true);
-  });
-
-  it("does not let a fixed task count toward the variable lottery", () => {
-    // adult-1 is fixed for t-fixed; if fixed tasks leaked into the running
-    // count, adult-1 would look artificially "loaded" and lose every
-    // variable tie. Running many seeds should still let adult-1 win at
-    // least one variable task when history starts empty for everyone.
-    const wins = new Set<string>();
+  it("never reassigns a fixed task, regardless of this period's balance seeding", () => {
     for (const seed of SEEDS) {
       const result = assignPeriod(members, tasks, settings, {}, seed);
-      const variableWinners = result
-        .filter((r) => !r.isFixed)
-        .map((r) => r.memberId);
-      variableWinners.forEach((m) => wins.add(m));
+      const fixed = result.find((r) => r.taskId === "t-fixed")!;
+      expect(fixed.memberId).toBe("adult-1");
+      expect(fixed.isFixed).toBe(true);
     }
-    expect(wins.has("adult-1")).toBe(true);
+  });
+
+  it("lets a member's fixed-task load reduce their variable-task share this period", () => {
+    // adult-1 holds the one fixed task. Comparing the same seeds against a
+    // matched run where nobody has any fixed load isolates the effect: with
+    // the fixed task counting toward adult-1's initial balance seed, they
+    // should win fewer of the 5 variable tasks overall than without it.
+    const settingsNoFixed = settings.map((s) => ({
+      ...s,
+      isFixed: false,
+      fixedMemberId: null,
+    }));
+    let winsWithFixed = 0;
+    let winsWithoutFixed = 0;
+    for (const seed of SEEDS) {
+      const withFixed = assignPeriod(members, tasks, settings, {}, seed);
+      const withoutFixed = assignPeriod(
+        members,
+        tasks,
+        settingsNoFixed,
+        {},
+        seed
+      );
+      winsWithFixed += withFixed.filter(
+        (r) => !r.isFixed && r.memberId === "adult-1"
+      ).length;
+      winsWithoutFixed += withoutFixed.filter(
+        (r) => !r.isFixed && r.memberId === "adult-1"
+      ).length;
+    }
+    expect(winsWithFixed).toBeLessThan(winsWithoutFixed);
   });
 
   it("only lets the currently least-loaded eligible members win a task", () => {
@@ -74,27 +91,26 @@ describe("assignPeriod", () => {
     );
     // No minAge restrictions here — every member is eligible for every
     // variable task, so age must not affect who ends up with more of them.
+    // Fixed tasks now count toward the balance seed, so the guarantee is on
+    // the TOTAL (fixed + variable) count, not the variable count alone.
     for (const seed of SEEDS) {
       const result = assignPeriod(members, openTasks, settings, {}, seed);
       const counts: Record<string, number> = {};
-      for (const r of result.filter((r) => !r.isFixed)) {
-        counts[r.memberId] = (counts[r.memberId] ?? 0) + 1;
-      }
+      for (const r of result) counts[r.memberId] = (counts[r.memberId] ?? 0) + 1;
       const values = members.map((m) => counts[m.id] ?? 0);
       expect(Math.max(...values) - Math.min(...values)).toBeLessThanOrEqual(1);
     }
   });
 
-  it("keeps the busiest and least-busy member within 1 variable task of each other", () => {
+  it("keeps the busiest and least-busy member within 1 total task of each other", () => {
     // Mirrors the real household's setup: t-cooking's minAge excludes
     // child-1 but not teen-1, so eligibility pools differ per task while
-    // most members remain eligible for most tasks.
+    // most members remain eligible for most tasks. Checked on the TOTAL
+    // (fixed + variable) count — that's the guarantee this change makes.
     for (const seed of SEEDS) {
       const result = assignPeriod(members, tasks, settings, {}, seed);
       const counts: Record<string, number> = {};
-      for (const r of result.filter((r) => !r.isFixed)) {
-        counts[r.memberId] = (counts[r.memberId] ?? 0) + 1;
-      }
+      for (const r of result) counts[r.memberId] = (counts[r.memberId] ?? 0) + 1;
       const values = members.map((m) => counts[m.id] ?? 0);
       expect(Math.max(...values) - Math.min(...values)).toBeLessThanOrEqual(1);
     }
@@ -131,14 +147,15 @@ describe("assignPeriod", () => {
     }
   });
 
-  it("guarantees every eligible member at least one variable task", () => {
+  it("guarantees every member ends up with at least one task overall", () => {
+    // adult-1's task might now be entirely their fixed one — that's fine;
+    // the guarantee is on total load, not specifically a variable task.
     for (const seed of SEEDS) {
       const result = assignPeriod(members, tasks, settings, {}, seed);
-      const variableWinners = new Set(
-        result.filter((r) => !r.isFixed).map((r) => r.memberId)
-      );
+      const counts: Record<string, number> = {};
+      for (const r of result) counts[r.memberId] = (counts[r.memberId] ?? 0) + 1;
       for (const member of members) {
-        expect(variableWinners.has(member.id)).toBe(true);
+        expect(counts[member.id] ?? 0).toBeGreaterThan(0);
       }
     }
   });
@@ -181,6 +198,56 @@ describe("assignPeriod", () => {
       isFixed: false,
       fixedMemberId: null,
     }));
+
+    for (const seed of SEEDS) {
+      const result = assignPeriod(
+        householdMembers,
+        allTasks,
+        allSettings,
+        {},
+        seed
+      );
+      const counts: Record<string, number> = {};
+      for (const r of result) counts[r.memberId] = (counts[r.memberId] ?? 0) + 1;
+      const values = householdMembers.map((m) => counts[m.id] ?? 0);
+      expect(Math.max(...values) - Math.min(...values)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("balances total task counts when one member holds several fixed tasks (real-household regression)", () => {
+    // Mirrors a real run: one member ("h3") holds 3 fixed tasks this
+    // period, two others hold 1 each, one holds none — while ~22 variable
+    // tasks (a few excluding the youngest via minAge) get distributed.
+    const householdMembers = [
+      { id: "h1", age: 34 },
+      { id: "h2", age: 50 },
+      { id: "h3", age: 34 },
+      { id: "h4", age: 16 },
+      { id: "h5", age: 10 },
+    ];
+    const fixedTaskOwner: Record<string, string> = {
+      "fixed-h3-a": "h3",
+      "fixed-h3-b": "h3",
+      "fixed-h3-c": "h3",
+      "fixed-h2": "h2",
+      "fixed-h4": "h4",
+    };
+    const fixedTasks = Object.keys(fixedTaskOwner).map((id) => ({
+      id,
+      isDaily: false,
+      minAge: null,
+    }));
+    const variableTasks = Array.from({ length: 22 }, (_, i) => ({
+      id: `var-${i}`,
+      isDaily: i % 2 === 0,
+      minAge: i < 3 ? 14 : null, // a few cooking-like tasks exclude h5 (age 10)
+    }));
+    const allTasks = [...fixedTasks, ...variableTasks];
+    const allSettings = allTasks.map((t) =>
+      fixedTaskOwner[t.id]
+        ? { taskId: t.id, isFixed: true, fixedMemberId: fixedTaskOwner[t.id] }
+        : { taskId: t.id, isFixed: false, fixedMemberId: null }
+    );
 
     for (const seed of SEEDS) {
       const result = assignPeriod(

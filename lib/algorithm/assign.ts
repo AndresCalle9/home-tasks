@@ -71,6 +71,14 @@ export function assignPeriod(
       dayOfWeek: task.isDaily ? null : pickDay(rng),
       isFixed: true,
     });
+    // Fixed tasks never enter the lottery, but this period's fixed load
+    // still counts toward the initial balance seed below, so a member with
+    // several fixed tasks doesn't also collect a full, undiscounted share
+    // of variable ones. Cross-period historicalTaskCount stays
+    // variable-only (unaffected here), so a permanent fixed responsibility
+    // doesn't keep depressing a member's odds in future periods.
+    runningCount[setting.fixedMemberId!] =
+      (runningCount[setting.fixedMemberId!] ?? 0) + 1;
   }
 
   for (const task of variable) {

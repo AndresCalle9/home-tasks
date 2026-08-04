@@ -15,7 +15,10 @@ calendario visual de lunes a domingo.
      el valor por defecto de cada tarea, pero modificable para ese periodo
      puntual — ej. reasignar temporalmente a quién le toca una tarea fija).
    - **Tareas fijas**: siempre las hace la misma persona (para ese periodo);
-     no entran al sorteo ni al cálculo de balance de carga.
+     nunca entran al sorteo aleatorio ni afectan el balance histórico entre
+     periodos, pero sí cuentan hacia la carga inicial de ese integrante al
+     balancear las tareas variables de ese mismo periodo (para que quien ya
+     tiene varias fijas no termine además con la mayor carga variable).
    - **Tareas variables**: se reparten de forma aleatoria pero ponderada por
      edad (adultos > menores) y por la carga acumulada en periodos anteriores
      (quien ha tenido menos carga tiene más probabilidad de recibir tareas).
