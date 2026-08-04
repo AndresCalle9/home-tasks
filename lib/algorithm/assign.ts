@@ -1,4 +1,4 @@
-import { mulberry32, pickDay, weightedPick } from "./rng";
+import { mulberry32, pickDay, pickUniform } from "./rng";
 
 export type AlgorithmMember = {
   id: string;
@@ -75,8 +75,13 @@ export function assignPeriod(
 
   for (const task of variable) {
     const candidates = eligibleMembers(members, task);
-    const weights = candidates.map((m) => 1 / (1 + (runningCount[m.id] ?? 0)));
-    const winner = weightedPick(rng, candidates, weights);
+    const minCount = Math.min(
+      ...candidates.map((m) => runningCount[m.id] ?? 0)
+    );
+    const leastLoaded = candidates.filter(
+      (m) => (runningCount[m.id] ?? 0) === minCount
+    );
+    const winner = pickUniform(rng, leastLoaded);
     runningCount[winner.id] = (runningCount[winner.id] ?? 0) + 1;
     results.push({
       taskId: task.id,
@@ -86,44 +91,36 @@ export function assignPeriod(
     });
   }
 
-  // Guarantee every member at least one variable task, if they're eligible
-  // for any: transfer one from whoever currently holds the most tasks among
-  // that member's eligible tasks. Deterministic — no further random draws,
-  // so a reroll's determinism is unaffected.
+  // The main loop only guarantees a <=1 spread among members equally
+  // eligible for every task it processes. When exclusion tasks (e.g. a
+  // min_age-restricted task) cluster together after an excluded member has
+  // already fallen behind, that guarantee can be violated (see design.md).
+  // Rebalance by repeatedly moving a task from the busiest member to the
+  // least-busy one, as long as the least-busy member is eligible for it.
+  // Deterministic — no further random draws, so a reroll's determinism is
+  // unaffected.
   const variableResults = results.filter((r) => !r.isFixed);
-  for (const member of members) {
-    const hasVariableTask = variableResults.some(
-      (r) => r.memberId === member.id
-    );
-    if (hasVariableTask) continue;
-
-    const candidates = variableResults.filter((r) => {
-      const task = taskById.get(r.taskId)!;
-      return task.minAge == null || member.age >= task.minAge;
-    });
-    if (candidates.length === 0) continue;
-
-    // Prefer taking from a holder with spare tasks (more than one), so this
-    // never zeroes out a member who was already processed and fixed up
-    // earlier in this same pass. Only take from a single-task holder if no
-    // eligible candidate has any slack.
-    const holderCount = new Map<string, number>();
-    for (const r of variableResults) {
-      holderCount.set(r.memberId, (holderCount.get(r.memberId) ?? 0) + 1);
+  while (members.length > 0) {
+    const counts = members.map((m) => runningCount[m.id] ?? 0);
+    const busiest = members[counts.indexOf(Math.max(...counts))];
+    const neediest = members[counts.indexOf(Math.min(...counts))];
+    if (
+      (runningCount[busiest.id] ?? 0) - (runningCount[neediest.id] ?? 0) <=
+      1
+    ) {
+      break;
     }
-    const withSlack = candidates.filter(
-      (r) => (holderCount.get(r.memberId) ?? 0) > 1
-    );
-    const pool = withSlack.length > 0 ? withSlack : candidates;
 
-    const target = pool.reduce((most, r) =>
-      (runningCount[r.memberId] ?? 0) > (runningCount[most.memberId] ?? 0)
-        ? r
-        : most
-    );
-    runningCount[target.memberId] = (runningCount[target.memberId] ?? 0) - 1;
-    runningCount[member.id] = (runningCount[member.id] ?? 0) + 1;
-    target.memberId = member.id;
+    const transferable = variableResults.find((r) => {
+      if (r.memberId !== busiest.id) return false;
+      const task = taskById.get(r.taskId)!;
+      return task.minAge == null || neediest.age >= task.minAge;
+    });
+    if (!transferable) break;
+
+    runningCount[busiest.id] = (runningCount[busiest.id] ?? 0) - 1;
+    runningCount[neediest.id] = (runningCount[neediest.id] ?? 0) + 1;
+    transferable.memberId = neediest.id;
   }
 
   return results;

@@ -68,31 +68,36 @@ describe("assignPeriod", () => {
     expect(wins.has("adult-1")).toBe(true);
   });
 
-  it("gives a member with a higher task count a lower selection weight", () => {
-    // Same formula the algorithm itself uses: 1 / (1 + tasksHeld).
-    const noHistory = 1 / (1 + 0);
-    const heavyHistory = 1 / (1 + 5);
-    expect(heavyHistory).toBeLessThan(noHistory);
-  });
-
-  it("does not skew task counts by age when everyone is eligible", () => {
-    // No minAge restrictions here — every member should end up with a
-    // roughly similar total task count over many runs, regardless of age.
+  it("only lets the currently least-loaded eligible members win a task", () => {
     const openTasks = tasks.map((t) =>
       t.id === "t-cooking" ? { ...t, minAge: null } : t
     );
-    const totals: Record<string, number> = {};
+    // No minAge restrictions here — every member is eligible for every
+    // variable task, so age must not affect who ends up with more of them.
     for (const seed of SEEDS) {
       const result = assignPeriod(members, openTasks, settings, {}, seed);
+      const counts: Record<string, number> = {};
       for (const r of result.filter((r) => !r.isFixed)) {
-        totals[r.memberId] = (totals[r.memberId] ?? 0) + 1;
+        counts[r.memberId] = (counts[r.memberId] ?? 0) + 1;
       }
+      const values = members.map((m) => counts[m.id] ?? 0);
+      expect(Math.max(...values) - Math.min(...values)).toBeLessThanOrEqual(1);
     }
-    // 5 variable tasks * 50 seeds = 250 draws, ~62.5 expected per member if
-    // perfectly even. Allow generous noise (~32%) — this only needs to
-    // catch a systematic (age-based) skew, not assert perfect evenness.
-    const counts = members.map((m) => totals[m.id] ?? 0);
-    expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(20);
+  });
+
+  it("keeps the busiest and least-busy member within 1 variable task of each other", () => {
+    // Mirrors the real household's setup: t-cooking's minAge excludes
+    // child-1 but not teen-1, so eligibility pools differ per task while
+    // most members remain eligible for most tasks.
+    for (const seed of SEEDS) {
+      const result = assignPeriod(members, tasks, settings, {}, seed);
+      const counts: Record<string, number> = {};
+      for (const r of result.filter((r) => !r.isFixed)) {
+        counts[r.memberId] = (counts[r.memberId] ?? 0) + 1;
+      }
+      const values = members.map((m) => counts[m.id] ?? 0);
+      expect(Math.max(...values) - Math.min(...values)).toBeLessThanOrEqual(1);
+    }
   });
 
   it("assigns a dayOfWeek in range for non-daily tasks and null for daily tasks", () => {
@@ -138,12 +143,57 @@ describe("assignPeriod", () => {
     }
   });
 
-  it("keeps exactly one assignment per task after the guarantee pass", () => {
+  it("keeps exactly one assignment per task after the rebalancing pass", () => {
     for (const seed of SEEDS) {
       const result = assignPeriod(members, tasks, settings, {}, seed);
       const taskIds = result.map((r) => r.taskId);
       expect(new Set(taskIds).size).toBe(taskIds.length);
       expect(taskIds.length).toBe(tasks.length);
+    }
+  });
+
+  it("rebalances when exclusion tasks cluster at the end (real-household regression)", () => {
+    // Reproduces the shape that exposed the gap in a real run: a household
+    // where most tasks are open to everyone, but the few that exclude one
+    // member (age-restricted, e.g. cooking) are all consecutive at the end
+    // of the list — so the main loop's per-draw balance can't self-correct
+    // before the run finishes.
+    const householdMembers = [
+      { id: "m1", age: 34 },
+      { id: "m2", age: 50 },
+      { id: "m3", age: 34 },
+      { id: "m4", age: 16 },
+      { id: "m5", age: 10 },
+    ];
+    const openTasks = Array.from({ length: 19 }, (_, i) => ({
+      id: `open-${i}`,
+      isDaily: i % 2 === 0,
+      minAge: null,
+    }));
+    const cookingTasks = Array.from({ length: 3 }, (_, i) => ({
+      id: `cooking-${i}`,
+      isDaily: true,
+      minAge: 14,
+    }));
+    const allTasks = [...openTasks, ...cookingTasks];
+    const allSettings = allTasks.map((t) => ({
+      taskId: t.id,
+      isFixed: false,
+      fixedMemberId: null,
+    }));
+
+    for (const seed of SEEDS) {
+      const result = assignPeriod(
+        householdMembers,
+        allTasks,
+        allSettings,
+        {},
+        seed
+      );
+      const counts: Record<string, number> = {};
+      for (const r of result) counts[r.memberId] = (counts[r.memberId] ?? 0) + 1;
+      const values = householdMembers.map((m) => counts[m.id] ?? 0);
+      expect(Math.max(...values) - Math.min(...values)).toBeLessThanOrEqual(1);
     }
   });
 });

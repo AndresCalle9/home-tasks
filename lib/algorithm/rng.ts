@@ -31,3 +31,8 @@ export function weightedPick<T>(
 export function pickDay(rng: () => number): number {
   return Math.floor(rng() * 7);
 }
+
+// Uniform random pick from a non-empty array.
+export function pickUniform<T>(rng: () => number, items: readonly T[]): T {
+  return items[Math.floor(rng() * items.length)];
+}
