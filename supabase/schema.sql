@@ -19,7 +19,6 @@ create table tasks (
   -- true: happens every day of the period (e.g. Cocinar Desayuno).
   -- false: happens once per period and needs a specific day assigned (e.g. Barrer).
   is_daily boolean not null default false,
-  weight numeric not null default 1 check (weight > 0),
   default_is_fixed boolean not null default false,
   default_fixed_member_id uuid references members(id),
   -- null: no age restriction. Set: only members at or above this age are

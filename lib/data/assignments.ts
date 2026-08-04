@@ -6,36 +6,33 @@ import { listPeriodTaskSettings } from "@/lib/data/periods";
 import { assignPeriod, type PeriodTaskSetting } from "@/lib/algorithm/assign";
 import { DAY_NAMES, type DaySchedule } from "@/lib/calendar-schedule";
 
-export async function getHistoricalLoad(
+export async function getHistoricalTaskCount(
   excludePeriodId: string
 ): Promise<Record<string, number>> {
   const { data, error } = await supabase
     .from("assignments")
-    .select("member_id, tasks(weight)")
+    .select("member_id")
     .eq("is_fixed", false)
     .neq("period_id", excludePeriodId);
 
   if (error) throw new Error(error.message);
 
-  const load: Record<string, number> = {};
-  for (const row of data as unknown as Array<{
-    member_id: string;
-    tasks: { weight: number } | null;
-  }>) {
-    load[row.member_id] = (load[row.member_id] ?? 0) + (row.tasks?.weight ?? 0);
+  const count: Record<string, number> = {};
+  for (const row of data as unknown as Array<{ member_id: string }>) {
+    count[row.member_id] = (count[row.member_id] ?? 0) + 1;
   }
-  return load;
+  return count;
 }
 
 export async function runAssignment(
   periodId: string
 ): Promise<{ error: string } | { ok: true }> {
-  const [members, tasks, periodTaskSettings, historicalLoad] =
+  const [members, tasks, periodTaskSettings, historicalTaskCount] =
     await Promise.all([
       listMembers(),
       listTasks(),
       listPeriodTaskSettings(periodId),
-      getHistoricalLoad(periodId),
+      getHistoricalTaskCount(periodId),
     ]);
 
   const settings: PeriodTaskSetting[] = periodTaskSettings.map((row) => ({
@@ -50,11 +47,10 @@ export async function runAssignment(
     tasks.map((t) => ({
       id: t.id,
       isDaily: t.isDaily,
-      weight: t.weight,
       minAge: t.minAge,
     })),
     settings,
-    historicalLoad,
+    historicalTaskCount,
     seed
   );
 

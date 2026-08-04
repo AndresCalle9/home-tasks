@@ -80,18 +80,6 @@ export function TaskFormDialog({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="task-weight">Peso (dificultad relativa)</Label>
-            <Input
-              id="task-weight"
-              name="weight"
-              type="number"
-              min={0.1}
-              step={0.1}
-              defaultValue={task?.weight ?? 1}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
             <Label htmlFor="task-min-age">Edad mínima (opcional)</Label>
             <Input
               id="task-min-age"

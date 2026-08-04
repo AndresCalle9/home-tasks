@@ -75,16 +75,6 @@ export async function deleteMemberAction(
   return { ok: true };
 }
 
-function parseWeight(formData: FormData): number | { error: string } {
-  const raw = formData.get("weight");
-  if (raw === null || raw === "") return 1;
-  const weight = Number(raw);
-  if (!Number.isFinite(weight) || weight <= 0) {
-    return { error: "El peso debe ser un número mayor a 0." };
-  }
-  return weight;
-}
-
 function parseMinAge(formData: FormData): number | null | { error: string } {
   const raw = formData.get("minAge");
   if (raw === null || raw === "") return null;
@@ -102,9 +92,6 @@ function parseTaskInput(formData: FormData): TaskInput | { error: string } {
   const isDaily = formData.get("isDaily") === "true";
   const defaultIsFixed = formData.get("defaultIsFixed") === "true";
 
-  const weight = parseWeight(formData);
-  if (typeof weight !== "number") return weight;
-
   const minAge = parseMinAge(formData);
   if (typeof minAge === "object" && minAge !== null) return minAge;
 
@@ -118,7 +105,6 @@ function parseTaskInput(formData: FormData): TaskInput | { error: string } {
   return {
     name,
     isDaily,
-    weight,
     defaultIsFixed,
     defaultFixedMemberId: defaultIsFixed ? fixedMemberId : null,
     minAge,

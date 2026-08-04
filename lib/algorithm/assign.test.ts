@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ageWeight, assignPeriod } from "./assign";
+import { assignPeriod } from "./assign";
 import { mulberry32 } from "./rng";
 
 const members = [
@@ -13,12 +13,12 @@ const members = [
 // minimum-guarantee pass to actually give everyone something, while
 // t-cooking's minAge excludes child-1 (and, at 18, teen-1 too).
 const tasks = [
-  { id: "t-fixed", isDaily: false, weight: 1, minAge: null },
-  { id: "t-var-daily", isDaily: true, weight: 1, minAge: null },
-  { id: "t-var-once", isDaily: false, weight: 2, minAge: null },
-  { id: "t-var-2", isDaily: true, weight: 1, minAge: null },
-  { id: "t-var-3", isDaily: false, weight: 1, minAge: null },
-  { id: "t-cooking", isDaily: true, weight: 1, minAge: 14 },
+  { id: "t-fixed", isDaily: false, minAge: null },
+  { id: "t-var-daily", isDaily: true, minAge: null },
+  { id: "t-var-once", isDaily: false, minAge: null },
+  { id: "t-var-2", isDaily: true, minAge: null },
+  { id: "t-var-3", isDaily: false, minAge: null },
+  { id: "t-cooking", isDaily: true, minAge: 14 },
 ];
 
 const settings = [
@@ -31,17 +31,6 @@ const settings = [
 ];
 
 const SEEDS = Array.from({ length: 50 }, (_, i) => i);
-
-describe("ageWeight", () => {
-  it("gives adults full weight, teens reduced, children the least", () => {
-    expect(ageWeight(34)).toBe(1);
-    expect(ageWeight(18)).toBe(1);
-    expect(ageWeight(16)).toBe(0.6);
-    expect(ageWeight(12)).toBe(0.6);
-    expect(ageWeight(10)).toBe(0.2);
-    expect(ageWeight(0)).toBe(0.2);
-  });
-});
 
 describe("assignPeriod", () => {
   it("is deterministic for a given seed", () => {
@@ -63,11 +52,11 @@ describe("assignPeriod", () => {
     expect(fixed.isFixed).toBe(true);
   });
 
-  it("does not let a fixed task's weight affect the variable lottery", () => {
-    // adult-1 is fixed for t-fixed; if fixed tasks leaked into runningLoad,
-    // adult-1 would look artificially "loaded" and lose every variable tie.
-    // Running many seeds should still let adult-1 win at least one variable
-    // task when history starts empty for everyone.
+  it("does not let a fixed task count toward the variable lottery", () => {
+    // adult-1 is fixed for t-fixed; if fixed tasks leaked into the running
+    // count, adult-1 would look artificially "loaded" and lose every
+    // variable tie. Running many seeds should still let adult-1 win at
+    // least one variable task when history starts empty for everyone.
     const wins = new Set<string>();
     for (const seed of SEEDS) {
       const result = assignPeriod(members, tasks, settings, {}, seed);
@@ -79,11 +68,31 @@ describe("assignPeriod", () => {
     expect(wins.has("adult-1")).toBe(true);
   });
 
-  it("gives a member with higher historical load a lower selection weight", () => {
-    // Same inputs as the algorithm's own weight formula: ageWeight / (1 + load).
-    const noHistory = ageWeight(34) / (1 + 0);
-    const heavyHistory = ageWeight(34) / (1 + 10);
+  it("gives a member with a higher task count a lower selection weight", () => {
+    // Same formula the algorithm itself uses: 1 / (1 + tasksHeld).
+    const noHistory = 1 / (1 + 0);
+    const heavyHistory = 1 / (1 + 5);
     expect(heavyHistory).toBeLessThan(noHistory);
+  });
+
+  it("does not skew task counts by age when everyone is eligible", () => {
+    // No minAge restrictions here — every member should end up with a
+    // roughly similar total task count over many runs, regardless of age.
+    const openTasks = tasks.map((t) =>
+      t.id === "t-cooking" ? { ...t, minAge: null } : t
+    );
+    const totals: Record<string, number> = {};
+    for (const seed of SEEDS) {
+      const result = assignPeriod(members, openTasks, settings, {}, seed);
+      for (const r of result.filter((r) => !r.isFixed)) {
+        totals[r.memberId] = (totals[r.memberId] ?? 0) + 1;
+      }
+    }
+    // 5 variable tasks * 50 seeds = 250 draws, ~62.5 expected per member if
+    // perfectly even. Allow generous noise (~32%) — this only needs to
+    // catch a systematic (age-based) skew, not assert perfect evenness.
+    const counts = members.map((m) => totals[m.id] ?? 0);
+    expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(20);
   });
 
   it("assigns a dayOfWeek in range for non-daily tasks and null for daily tasks", () => {
