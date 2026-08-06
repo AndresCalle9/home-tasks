@@ -5,6 +5,7 @@ import { listTasks } from "@/lib/data/tasks";
 import { listPeriodTaskSettings } from "@/lib/data/periods";
 import { assignPeriod, type PeriodTaskSetting } from "@/lib/algorithm/assign";
 import { DAY_NAMES, type DaySchedule } from "@/lib/calendar-schedule";
+import type { MutationResult } from "@/lib/data/errors";
 
 export async function getHistoricalTaskCount(
   excludePeriodId: string
@@ -101,6 +102,26 @@ export async function runAssignment(
     .eq("id", periodId);
   if (periodError) return { error: periodError.message };
 
+  return { ok: true };
+}
+
+// Manual, single-task rebalance from the calendar — updates every day-row
+// a (possibly multi-day) variable task has for this period, all at once,
+// so it keeps exactly one responsible member. Never touches fixed rows.
+export async function reassignTask(
+  periodId: string,
+  taskId: string,
+  memberId: string
+): Promise<MutationResult> {
+  const { error } = await supabase
+    .from("assignments")
+    .update({ member_id: memberId })
+    .eq("period_id", periodId)
+    .eq("task_id", taskId)
+    .eq("is_fixed", false);
+  if (error) {
+    return { error: "Ocurrió un error guardando la asignación. Intenta de nuevo." };
+  }
   return { ok: true };
 }
 

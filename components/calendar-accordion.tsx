@@ -31,9 +31,11 @@ function getServerTodayIndex() {
 export function CalendarAccordion({
   week,
   members,
+  periodId,
 }: {
   week: DaySchedule[];
   members: Member[];
+  periodId: string;
 }) {
   const todayIndex = useSyncExternalStore(
     subscribeToNothing,
@@ -65,6 +67,8 @@ export function CalendarAccordion({
                     key={group.member.id}
                     group={group}
                     memberIndex={memberIndexById.get(group.member.id) ?? 0}
+                    members={members}
+                    periodId={periodId}
                   />
                 ))}
               </div>

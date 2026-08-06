@@ -33,8 +33,8 @@ export default async function CalendarioPage() {
         </div>
       </div>
 
-      {week ? (
-        <CalendarAccordion week={week} members={members} />
+      {week && period ? (
+        <CalendarAccordion week={week} members={members} periodId={period.id} />
       ) : (
         <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
           Usa &ldquo;Asignar tareas&rdquo; para definir el primer periodo y
