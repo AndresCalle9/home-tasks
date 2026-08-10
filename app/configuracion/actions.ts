@@ -9,6 +9,7 @@ import {
 import {
   createTask,
   deleteTask,
+  listTasks,
   updateTask,
   type TaskInput,
 } from "@/lib/data/tasks";
@@ -90,7 +91,53 @@ function parseDayGroup(formData: FormData): string | null {
   return raw || null;
 }
 
-function parseTaskInput(formData: FormData): TaskInput | { error: string } {
+function parseTimesPerWeek(
+  formData: FormData,
+  isDaily: boolean
+): number | null | { error: string } {
+  if (isDaily) return null;
+  const raw = formData.get("timesPerWeek");
+  const timesPerWeek = Number(raw);
+  if (
+    raw === null ||
+    raw === "" ||
+    !Number.isFinite(timesPerWeek) ||
+    timesPerWeek < 1 ||
+    timesPerWeek > 7
+  ) {
+    return {
+      error: "Las veces por semana deben ser un número entre 1 y 7.",
+    };
+  }
+  return Math.floor(timesPerWeek);
+}
+
+async function checkDayGroupConsistency(
+  currentTaskId: string | null,
+  dayGroup: string | null,
+  timesPerWeek: number | null
+): Promise<{ error: string } | null> {
+  if (dayGroup == null) return null;
+
+  const tasks = await listTasks();
+  const mismatch = tasks.find(
+    (t) =>
+      t.id !== currentTaskId &&
+      t.dayGroup === dayGroup &&
+      t.timesPerWeek !== timesPerWeek
+  );
+  if (mismatch) {
+    return {
+      error: `"${mismatch.name}" ya usa el grupo "${dayGroup}" con ${mismatch.timesPerWeek} veces por semana; esta tarea debe usar el mismo valor.`,
+    };
+  }
+  return null;
+}
+
+async function parseTaskInput(
+  formData: FormData,
+  currentTaskId: string | null
+): Promise<TaskInput | { error: string }> {
   const name = parseName(formData);
   if (typeof name !== "string") return name;
 
@@ -100,12 +147,24 @@ function parseTaskInput(formData: FormData): TaskInput | { error: string } {
   const minAge = parseMinAge(formData);
   if (typeof minAge === "object" && minAge !== null) return minAge;
 
-  const dayGroup = parseDayGroup(formData);
+  const dayGroup = isDaily ? null : parseDayGroup(formData);
 
-  const fixedMemberId = String(formData.get("defaultFixedMemberId") ?? "");
-  if (defaultIsFixed && !fixedMemberId) {
+  const timesPerWeek = parseTimesPerWeek(formData, isDaily);
+  if (typeof timesPerWeek === "object" && timesPerWeek !== null) {
+    return timesPerWeek;
+  }
+
+  const dayGroupError = await checkDayGroupConsistency(
+    currentTaskId,
+    dayGroup,
+    timesPerWeek
+  );
+  if (dayGroupError) return dayGroupError;
+
+  const defaultFixedMemberIds = formData.getAll("defaultFixedMemberIds").map(String);
+  if (defaultIsFixed && defaultFixedMemberIds.length === 0) {
     return {
-      error: "Si la tarea es fija, debes elegir un integrante responsable.",
+      error: "Si la tarea es fija, debes elegir al menos un integrante responsable.",
     };
   }
 
@@ -113,9 +172,10 @@ function parseTaskInput(formData: FormData): TaskInput | { error: string } {
     name,
     isDaily,
     defaultIsFixed,
-    defaultFixedMemberId: defaultIsFixed ? fixedMemberId : null,
+    defaultFixedMemberIds: defaultIsFixed ? defaultFixedMemberIds : [],
     minAge,
-    dayGroup: isDaily ? null : dayGroup,
+    dayGroup,
+    timesPerWeek,
   };
 }
 
@@ -123,7 +183,7 @@ export async function createTaskAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const input = parseTaskInput(formData);
+  const input = await parseTaskInput(formData, null);
   if ("error" in input) return input;
 
   const result = await createTask(input);
@@ -138,7 +198,7 @@ export async function updateTaskAction(
 ): Promise<ActionState> {
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Falta el identificador de la tarea." };
-  const input = parseTaskInput(formData);
+  const input = await parseTaskInput(formData, id);
   if ("error" in input) return input;
 
   const result = await updateTask(id, input);

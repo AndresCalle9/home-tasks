@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createPeriod, updatePeriodTaskSettings, type ReviewRow } from "@/lib/data/periods";
 import { runAssignment } from "@/lib/data/assignments";
+import { verifySecurityPassword } from "@/lib/security/password";
 
 export type DefinePeriodState = {
   error?: string;
@@ -31,18 +32,24 @@ export async function confirmAssignmentAction(
   const periodId = String(formData.get("periodId") ?? "");
   if (!periodId) return { error: "Falta el identificador del periodo." };
 
+  const password = String(formData.get("password") ?? "");
+  if (!verifySecurityPassword(password)) {
+    return { error: "Clave incorrecta." };
+  }
+
   const taskIds = formData.getAll("taskId").map(String);
   const rows = taskIds.map((taskId) => {
     const isFixed = formData.get(`isFixed-${taskId}`) === "true";
-    const fixedMemberId = isFixed
-      ? String(formData.get(`fixedMemberId-${taskId}`) ?? "") || null
-      : null;
-    return { taskId, isFixed, fixedMemberId };
+    const fixedMemberIds = isFixed
+      ? formData.getAll(`fixedMemberIds-${taskId}`).map(String)
+      : [];
+    return { taskId, isFixed, fixedMemberIds };
   });
 
-  if (rows.some((row) => row.isFixed && !row.fixedMemberId)) {
+  if (rows.some((row) => row.isFixed && row.fixedMemberIds.length === 0)) {
     return {
-      error: "Todas las tareas fijas deben tener un integrante responsable.",
+      error:
+        "Todas las tareas fijas deben tener al menos un integrante responsable.",
     };
   }
 

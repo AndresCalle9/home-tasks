@@ -1,49 +1,44 @@
-# period-assignment Specification
-
-## Purpose
-TBD - created by syncing change period-assignment. Update Purpose after archive.
-
-## Requirements
-
-### Requirement: Define a Period
-The system SHALL let a user start a new assignment by choosing a Monday as
-the period's start date; the end date SHALL always be computed as that
-Monday plus six days (the following Sunday) and SHALL NOT be independently
-editable.
-
-#### Scenario: Choosing a valid Monday
-- **WHEN** a user picks a Monday as the start date and continues
-- **THEN** the system SHALL create a `periods` row with that Monday as
-  `start_date`, the following Sunday as `end_date`, and status `draft`
-
-#### Scenario: Choosing a non-Monday date
-- **WHEN** a user picks a start date that is not a Monday
-- **THEN** the system SHALL reject the submission and show an inline error
-  asking for a Monday
+## MODIFIED Requirements
 
 ### Requirement: Review and Edit Fixed/Variable Tasks Before Assigning
 Once a period exists, the system SHALL show every task with its fixed/
-variable status and (if fixed) responsible member, pre-filled from each
-task's default (`default_is_fixed`, `default_fixed_member_id`), and SHALL
+variable status and (if fixed) its enabled member(s), pre-filled from each
+task's default (`default_is_fixed`, its default fixed members), and SHALL
 let the user change either for this period only before running the sorteo.
+A fixed task's enabled members SHALL be a set of one or more household
+members, not necessarily just one.
 
 #### Scenario: Defaults are pre-filled
 - **WHEN** a user reaches the review step for a newly created period
-- **THEN** the system SHALL show each task's fixed/variable state and fixed
-  member matching that task's current default values
+- **THEN** the system SHALL show each task's fixed/variable state and its
+  fixed member(s) matching that task's current default values
 
 #### Scenario: Editing a task's fixed status for this period only
 - **WHEN** a user changes a task from fixed to variable (or vice versa, and
-  picks a member if now fixed) during review and confirms
+  picks one or more members if now fixed) during review and confirms
 - **THEN** the system SHALL persist that choice to `period_task_settings`
-  for this period without changing the task's own default
+  (and its enabled members) for this period without changing the task's own
+  default
 
-#### Scenario: Marking a task fixed without a member
-- **WHEN** a user marks a task as fixed but does not choose a responsible
+#### Scenario: Marking a task fixed without any member
+- **WHEN** a user marks a task as fixed but does not choose at least one
+  responsible member
+- **THEN** the system SHALL reject the submission and ask for at least one
   member
-- **THEN** the system SHALL reject the submission and ask for a member
+
+#### Scenario: Marking a task fixed with multiple members
+- **WHEN** a user marks a task as fixed and selects more than one member
+  during review
+- **THEN** the system SHALL persist all of the selected members as that
+  task's enabled fixed members for this period
 
 ### Requirement: Run the Weighted Assignment Algorithm
+Running this algorithm — whether triggered by confirming a new period's
+fixed/variable settings for the first time, or by a reroll of an already-
+assigned period — SHALL require the shared security password
+(`SECURITY_PASSWORD`), entered in a confirmation step and verified
+server-side; the system SHALL NOT run the algorithm, and SHALL leave any
+previous assignments untouched, if the password is wrong or missing.
 Once fixed/variable settings are confirmed, the system SHALL assign every
 variable task to exactly one member for the whole period using a lottery
 balanced by how many tasks each member currently holds, where that count
@@ -56,30 +51,46 @@ candidates. A task with a configured minimum age SHALL only be eligible for
 members at or above that age; if no member meets it, the system SHALL
 assign the task to the oldest household member instead of leaving it
 unassigned. Age SHALL NOT otherwise influence the odds of being picked.
-Fixed tasks SHALL be assigned directly to their configured member and SHALL
-NOT enter the lottery or be reassignable by the rebalancing pass, but SHALL
-count toward that member's initial task count for this period's balance —
-historical task counts carried over from previously assigned periods SHALL
-remain based on variable tasks only, so a permanent fixed responsibility
-does not reduce a member's odds in future periods. Tasks that are not daily
-(`is_daily = false`), whether fixed or variable, SHALL receive that task's
-configured number of distinct days per week (`times_per_week`, 1-7) as
-part of this same run; tasks sharing the same non-null `day_group` SHALL
-always receive the identical set of days as each other. After the lottery,
-the system SHALL rebalance by repeatedly transferring one
-variable task from whichever member currently holds the most tasks to
-whichever member holds the fewest — provided the receiving member is
-eligible for that task — until the difference between the busiest and
-least-busy member is at most 1, or no further eligible transfer exists.
+A fixed task SHALL be assigned to whichever of its configured enabled
+members currently holds the strict minimum task count among them, with ties
+broken uniformly at random the same way as the variable lottery; it SHALL
+NOT enter the variable lottery itself or be reassignable by the rebalancing
+pass, but SHALL count toward the winning member's initial task count for
+this period's balance — historical task counts carried over from previously
+assigned periods SHALL remain based on variable tasks only, so a permanent
+fixed responsibility does not reduce a member's odds in future periods.
+Tasks that are not daily (`is_daily = false`), whether fixed or variable,
+SHALL receive that task's configured number of distinct days per week
+(`times_per_week`, 1-7) as part of this same run; tasks sharing the same
+non-null `day_group` SHALL always receive the identical set of days as each
+other. After the lottery, the system SHALL rebalance by repeatedly
+transferring one variable task from whichever member currently holds the
+most tasks to whichever member holds the fewest — provided the receiving
+member is eligible for that task — until the difference between the busiest
+and least-busy member is at most 1, or no further eligible transfer exists.
 This rebalancing SHALL only ever change which member a task is assigned
-to, never its assigned day(s). The algorithm SHALL be deterministic for a
-given stored seed.
+to, never its assigned day(s), and SHALL NOT touch fixed-task assignments.
+The algorithm SHALL be deterministic for a given stored seed.
+
+#### Scenario: Wrong or missing password blocks running the assignment
+- **WHEN** a user confirms a period's fixed/variable settings and submits
+  an incorrect password, or no password, in the confirmation step
+- **THEN** the system SHALL NOT run the assignment algorithm
+- **THEN** the system SHALL show an inline error and SHALL NOT create or
+  change any `assignments` rows for that period
 
 #### Scenario: Fixed tasks bypass the lottery
 - **WHEN** the assignment runs for a period
 - **THEN** every task marked fixed in that period's settings SHALL be
-  assigned to its configured member without going through the weighted
-  lottery
+  assigned to one of its configured enabled members without going through
+  the variable lottery
+
+#### Scenario: A fixed task with multiple enabled members picks the least-loaded one
+- **WHEN** the assignment runs and a fixed task has more than one enabled
+  member configured for this period
+- **THEN** the system SHALL assign it to whichever of those enabled members
+  currently holds the strict minimum task count among them, breaking any
+  tie uniformly at random via the seeded RNG
 
 #### Scenario: A member's fixed tasks reduce their variable-task share this period
 - **WHEN** the assignment runs and a member holds more fixed tasks this
@@ -178,11 +189,23 @@ given stored seed.
 ### Requirement: Reroll a Period's Assignment
 Once a period has been assigned, the system SHALL let a user re-run the
 weighted lottery for that same period using a newly generated seed, without
-requiring the period or its fixed/variable settings to be redefined.
+requiring the period or its fixed/variable settings to be redefined. This
+SHALL require the shared security password (`SECURITY_PASSWORD`), entered
+in a confirmation step and verified server-side; the system SHALL NOT
+reroll, and SHALL leave the period's existing assignments untouched, if the
+password is wrong or missing.
 
 #### Scenario: Rerolling replaces the previous result
-- **WHEN** a user rerolls an already-assigned period
+- **WHEN** a user rerolls an already-assigned period and confirms the
+  security password correctly
 - **THEN** the system SHALL generate a new seed, discard that period's
   previous `assignments` rows, and persist a new set of assignments
 - **THEN** the period's fixed/variable settings (`period_task_settings`)
   SHALL remain unchanged
+
+#### Scenario: Wrong or missing password blocks a reroll
+- **WHEN** a user attempts to reroll an already-assigned period and submits
+  an incorrect password, or no password, in the confirmation step
+- **THEN** the system SHALL NOT discard or regenerate that period's
+  `assignments` rows
+- **THEN** the system SHALL show an inline error

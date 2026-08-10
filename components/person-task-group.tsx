@@ -1,6 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { personColorVarByIndex } from "@/lib/person-color";
 import { TaskMemberSelect } from "@/components/task-member-select";
+import { TaskDaySelect } from "@/components/task-day-select";
+import { TaskCompletionCheckbox } from "@/components/task-completion-checkbox";
 import type { PersonGroup } from "@/lib/calendar-schedule";
 import type { Member } from "@/lib/data/members";
 
@@ -9,11 +11,13 @@ export function PersonTaskGroup({
   memberIndex,
   members,
   periodId,
+  dayOfWeek,
 }: {
   group: PersonGroup;
   memberIndex: number;
   members: Member[];
   periodId: string;
+  dayOfWeek: number;
 }) {
   const color = personColorVarByIndex(memberIndex);
   const initial = group.member.name.charAt(0).toUpperCase();
@@ -33,8 +37,13 @@ export function PersonTaskGroup({
         <span className="text-sm font-semibold">{group.member.name}</span>
       </div>
       <ul className="flex flex-col gap-1.5 pl-8">
-        {group.items.map(({ task, isFixed }) => (
+        {group.items.map(({ assignmentId, task, isFixed, completed }) => (
           <li key={task.id} className="flex items-center gap-2">
+            <TaskCompletionCheckbox
+              assignmentId={assignmentId}
+              dayOfWeek={dayOfWeek}
+              completed={completed}
+            />
             <span className="text-sm leading-snug">{task.name}</span>
             {isFixed ? (
               <Badge variant="outline" className="shrink-0 text-[10px]">
@@ -48,6 +57,13 @@ export function PersonTaskGroup({
                 eligibleMembers={members.filter(
                   (m) => task.minAge == null || m.age >= task.minAge
                 )}
+              />
+            )}
+            {task.timesPerWeek === 1 && task.dayGroup == null && (
+              <TaskDaySelect
+                periodId={periodId}
+                taskId={task.id}
+                currentDayOfWeek={dayOfWeek}
               />
             )}
           </li>

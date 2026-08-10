@@ -1,5 +1,4 @@
 import { Badge } from "@/components/ui/badge";
-import { personColorVarByIndex } from "@/lib/person-color";
 import { deleteTaskAction } from "@/app/configuracion/actions";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { TaskFormDialog } from "@/components/task-form-dialog";
@@ -8,13 +7,11 @@ import type { Task } from "@/lib/data/tasks";
 
 export function TaskRow({
   task,
-  fixedMember,
-  fixedMemberIndex,
+  fixedMembers,
   members,
 }: {
   task: Task;
-  fixedMember: Member | null;
-  fixedMemberIndex: number;
+  fixedMembers: Member[];
   members: Member[];
 }) {
   return (
@@ -30,17 +27,19 @@ export function TaskRow({
           {task.minAge}+
         </Badge>
       )}
+      {task.timesPerWeek != null && (
+        <Badge variant="outline" className="shrink-0 text-[10px]">
+          {task.timesPerWeek}x/semana
+        </Badge>
+      )}
       {task.dayGroup != null && (
         <Badge variant="outline" className="shrink-0 text-[10px]">
           Grupo: {task.dayGroup}
         </Badge>
       )}
-      {fixedMember ? (
-        <Badge
-          className="shrink-0 gap-1 border-transparent text-[10px] text-white"
-          style={{ backgroundColor: personColorVarByIndex(fixedMemberIndex) }}
-        >
-          Fija · {fixedMember.name}
+      {fixedMembers.length > 0 ? (
+        <Badge variant="outline" className="shrink-0 text-[10px]">
+          Fija · {fixedMembers.map((m) => m.name).join(", ")}
         </Badge>
       ) : (
         <Badge variant="outline" className="shrink-0 text-[10px]">

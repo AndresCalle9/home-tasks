@@ -1,42 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { FixedMemberChecklist } from "@/components/fixed-member-checklist";
+import { PasswordConfirmDialog } from "@/components/password-confirm-dialog";
+import { confirmAssignmentAction } from "@/app/calendario/asignar/actions";
 import type { Member } from "@/lib/data/members";
 import type { ReviewRow } from "@/lib/data/periods";
-import type { ConfirmAssignmentState } from "@/app/calendario/asignar/actions";
 
 export function PeriodReviewTable({
   periodId,
   initialRows,
   members,
-  action,
-  state,
-  pending,
 }: {
   periodId: string;
   initialRows: ReviewRow[];
   members: Member[];
-  action: (formData: FormData) => void;
-  state: ConfirmAssignmentState;
-  pending: boolean;
 }) {
+  const formRef = useRef<HTMLFormElement>(null);
   const [fixedByTask, setFixedByTask] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(initialRows.map((row) => [row.taskId, row.isFixed]))
   );
-  const memberItems = Object.fromEntries(members.map((m) => [m.id, m.name]));
+  const [fixedMembersByTask, setFixedMembersByTask] = useState<
+    Record<string, string[]>
+  >(() =>
+    Object.fromEntries(initialRows.map((row) => [row.taskId, row.fixedMemberIds]))
+  );
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form
+      ref={formRef}
+      onSubmit={(event) => event.preventDefault()}
+      className="flex flex-col gap-4"
+    >
       <input type="hidden" name="periodId" value={periodId} />
       <ul className="flex flex-col gap-2">
         {initialRows.map((row) => {
@@ -68,38 +65,32 @@ export function PeriodReviewTable({
                 />
               </label>
               {isFixed && (
-                <Select
-                  name={`fixedMemberId-${row.taskId}`}
-                  defaultValue={row.fixedMemberId ?? undefined}
-                  items={memberItems}
-                  required
-                >
-                  <SelectTrigger className="w-full sm:w-40">
-                    <SelectValue placeholder="Responsable">
-                      {(value: string | null) =>
-                        members.find((m) => m.id === value)?.name ?? ""
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {members.map((member) => (
-                      <SelectItem key={member.id} value={member.id}>
-                        {member.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FixedMemberChecklist
+                  name={`fixedMemberIds-${row.taskId}`}
+                  members={members}
+                  selectedIds={fixedMembersByTask[row.taskId] ?? []}
+                  onChange={(ids) =>
+                    setFixedMembersByTask((prev) => ({
+                      ...prev,
+                      [row.taskId]: ids,
+                    }))
+                  }
+                />
               )}
             </li>
           );
         })}
       </ul>
 
-      {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-
-      <Button type="submit" disabled={pending}>
-        {pending ? "Sorteando…" : "Confirmar y asignar"}
-      </Button>
+      <PasswordConfirmDialog
+        action={confirmAssignmentAction}
+        getFormData={() => new FormData(formRef.current!)}
+        triggerLabel="Confirmar y asignar"
+        triggerVariant="default"
+        pendingLabel="Sorteando…"
+        title="Confirmar y asignar tareas"
+        description="Esto ejecuta el sorteo con las tareas fijas/variables definidas arriba."
+      />
     </form>
   );
 }

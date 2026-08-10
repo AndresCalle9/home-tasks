@@ -14,30 +14,50 @@ calendario visual de lunes a domingo.
      ese periodo con su estado **fija/variable** editable (pre-cargado desde
      el valor por defecto de cada tarea, pero modificable para ese periodo
      puntual — ej. reasignar temporalmente a quién le toca una tarea fija).
-   - **Tareas fijas**: siempre las hace la misma persona (para ese periodo);
-     nunca entran al sorteo aleatorio ni afectan el balance histórico entre
-     periodos, pero sí cuentan hacia la carga inicial de ese integrante al
-     balancear las tareas variables de ese mismo periodo (para que quien ya
-     tiene varias fijas no termine además con la mayor carga variable).
+   - **Tareas fijas**: se definen uno o más integrantes habilitados (para ese
+     periodo); a la hora del sorteo, le toca a quien de esos habilitados
+     tenga menos carga acumulada en ese momento (empate se rompe al azar).
+     Nunca entran al sorteo general de variables ni afectan el balance
+     histórico entre periodos, pero sí cuentan hacia la carga inicial de
+     quien la gane al balancear las tareas variables de ese mismo periodo
+     (para que quien ya tiene varias fijas no termine además con la mayor
+     carga variable).
    - **Tareas variables**: se reparten de forma aleatoria pero ponderada por
      edad (adultos > menores) y por la carga acumulada en periodos anteriores
      (quien ha tenido menos carga tiene más probabilidad de recibir tareas).
    - Cada tarea variable recibe **una sola persona asignada para todo el
      periodo** (p.ej. quien cocina el desayuno lo hace todos los días del
      periodo; no hay rotación día a día dentro de un mismo periodo).
-   - Las tareas que ocurren "una vez por periodo" (barrer, trapear, ruta del
-     popo, organizar zonas comunes, etc.) además reciben un **día específico**
-     del periodo como parte del sorteo, para que el calendario quede completo.
+   - Las tareas "puntuales" (barrer, trapear, lavar ropa, etc., en
+     contraste con las diarias) tienen una **frecuencia configurable por
+     tarea** (veces por semana, de 1 a 7; ej. lavar el baño 1 vez, sacar la
+     basura 3-4 veces) y reciben esa cantidad de **días específicos** del
+     periodo como parte del sorteo, para que el calendario quede completo.
+     Tareas relacionadas (ej. lavar y extender ropa) pueden agruparse para
+     que siempre caigan en los mismos días — deben compartir la misma
+     frecuencia. Una tarea con frecuencia de 1 vez por semana (y sin grupo
+     de día) puede además editarse manualmente desde el Calendario para
+     escoger a qué día cae, en vez del día que salió del sorteo.
    - El algoritmo debe ser determinista dado un seed, para poder testearlo.
 2. **Calendario semanal**: vista lunes-domingo con la tarea y el responsable de
    cada día, a partir del resultado de la asignación del periodo vigente.
+   Cada tarea de cada día tiene un checkbox de completado, independiente
+   por día (incluso para una tarea diaria, que solo tiene una asignación de
+   fondo pero se marca día por día), sin restricción de quién lo marca.
 3. **Gestión (CRUD)**: pestaña para crear, editar y eliminar tareas e
-   integrantes (nombre, edad, si la tarea es fija por defecto y de quién).
+   integrantes (nombre, edad, si la tarea es fija por defecto y de
+   quién/quiénes — una tarea fija puede tener uno o más responsables
+   habilitados).
 
-Fuera de alcance por ahora: multi-hogar, login con contraseña, notificaciones
-push, apps nativas, asignación automática/programada. Un solo hogar, sin
-cuentas: se entra directo y cada integrante elige su perfil (selector estilo
-Netflix), sin passwords.
+Fuera de alcance por ahora: multi-hogar, login con contraseña para entrar a
+la app, notificaciones push, apps nativas, asignación automática/programada.
+Un solo hogar, sin cuentas: se entra directo y cada integrante elige su
+perfil (selector estilo Netflix), sin passwords para eso. La única excepción
+es una clave compartida (`SECURITY_PASSWORD`, variable de entorno
+server-side) que protege específicamente las acciones que cambian el
+resultado de un periodo ya sorteado: correr o repetir el sorteo, y
+reasignar manualmente el responsable o el día de una tarea desde el
+Calendario. Marcar una tarea como completada no requiere esa clave.
 
 ## Stack técnico
 
@@ -86,14 +106,17 @@ Netflix), sin passwords.
 
 - `members`: integrantes del hogar (nombre, edad).
 - `tasks`: catálogo de tareas (nombre, si es diaria, si es fija por defecto y
-  de quién, peso/dificultad opcional).
+  de quién/quiénes — vía `task_default_fixed_members` —, peso/dificultad
+  opcional).
 - `periods`: cada ciclo de asignación definido manualmente (fecha inicio/fin,
   estado).
 - `period_task_settings`: snapshot editable, por periodo, de qué tareas son
-  fijas y de quién (parte del "antes de asignar").
+  fijas y de quién/quiénes — vía `period_task_setting_fixed_members` —
+  (parte del "antes de asignar").
 - `assignments`: resultado final de la asignación de un periodo — qué tarea le
   tocó a quién (y qué día, para las tareas de una vez por periodo). También es
   la fuente para calcular el balance de carga acumulado.
+- `assignment_completions`: si cada tarea asignada, por día, ya se hizo.
 
 Ver `supabase/schema.sql` para el detalle de columnas y relaciones, y
 `supabase/seed.sql` para los datos iniciales de integrantes y tareas.

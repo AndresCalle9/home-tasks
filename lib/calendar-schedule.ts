@@ -18,12 +18,23 @@ export const DAY_NAMES = [
 export type DaySchedule = {
   dayOfWeek: number;
   dayName: string;
-  items: Array<{ task: Task; member: Member; isFixed: boolean }>;
+  items: Array<{
+    assignmentId: string;
+    task: Task;
+    member: Member;
+    isFixed: boolean;
+    completed: boolean;
+  }>;
 };
 
 export type PersonGroup = {
   member: Member;
-  items: Array<{ task: Task; isFixed: boolean }>;
+  items: Array<{
+    assignmentId: string;
+    task: Task;
+    isFixed: boolean;
+    completed: boolean;
+  }>;
 };
 
 // `members` is the full household list, used only to order groups the same
@@ -34,9 +45,9 @@ export function getPersonGroupsForDay(
 ): PersonGroup[] {
   const itemsByMemberId = new Map<string, PersonGroup["items"]>();
 
-  for (const { task, member, isFixed } of day.items) {
+  for (const { assignmentId, task, member, isFixed, completed } of day.items) {
     const items = itemsByMemberId.get(member.id) ?? [];
-    items.push({ task, isFixed });
+    items.push({ assignmentId, task, isFixed, completed });
     itemsByMemberId.set(member.id, items);
   }
 

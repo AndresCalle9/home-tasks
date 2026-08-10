@@ -41,6 +41,11 @@ export async function updateMember(
 }
 
 export async function deleteMember(id: string): Promise<MutationResult> {
+  // task_default_fixed_members / period_task_setting_fixed_members
+  // reference members(id) with no ON DELETE clause, so Postgres itself
+  // rejects this with a 23503 foreign-key violation while the member is
+  // still enabled as a fixed responsible for any task — mapDbError below
+  // turns that into the friendly "reassign first" message.
   const { error } = await supabase.from("members").delete().eq("id", id);
   if (error) return { error: mapDbError(error, "integrante") };
   return { ok: true };

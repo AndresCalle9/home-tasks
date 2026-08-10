@@ -13,21 +13,21 @@ const members = [
 // minimum-guarantee pass to actually give everyone something, while
 // t-cooking's minAge excludes child-1 (and, at 18, teen-1 too).
 const tasks = [
-  { id: "t-fixed", isDaily: false, minAge: null, dayGroup: null },
-  { id: "t-var-daily", isDaily: true, minAge: null, dayGroup: null },
-  { id: "t-var-once", isDaily: false, minAge: null, dayGroup: null },
-  { id: "t-var-2", isDaily: true, minAge: null, dayGroup: null },
-  { id: "t-var-3", isDaily: false, minAge: null, dayGroup: null },
-  { id: "t-cooking", isDaily: true, minAge: 14, dayGroup: null },
+  { id: "t-fixed", isDaily: false, minAge: null, dayGroup: null, timesPerWeek: 3 },
+  { id: "t-var-daily", isDaily: true, minAge: null, dayGroup: null, timesPerWeek: null },
+  { id: "t-var-once", isDaily: false, minAge: null, dayGroup: null, timesPerWeek: 3 },
+  { id: "t-var-2", isDaily: true, minAge: null, dayGroup: null, timesPerWeek: null },
+  { id: "t-var-3", isDaily: false, minAge: null, dayGroup: null, timesPerWeek: 3 },
+  { id: "t-cooking", isDaily: true, minAge: 14, dayGroup: null, timesPerWeek: null },
 ];
 
 const settings = [
-  { taskId: "t-fixed", isFixed: true, fixedMemberId: "adult-1" },
-  { taskId: "t-var-daily", isFixed: false, fixedMemberId: null },
-  { taskId: "t-var-once", isFixed: false, fixedMemberId: null },
-  { taskId: "t-var-2", isFixed: false, fixedMemberId: null },
-  { taskId: "t-var-3", isFixed: false, fixedMemberId: null },
-  { taskId: "t-cooking", isFixed: false, fixedMemberId: null },
+  { taskId: "t-fixed", isFixed: true, fixedMemberIds: ["adult-1"] },
+  { taskId: "t-var-daily", isFixed: false, fixedMemberIds: [] },
+  { taskId: "t-var-once", isFixed: false, fixedMemberIds: [] },
+  { taskId: "t-var-2", isFixed: false, fixedMemberIds: [] },
+  { taskId: "t-var-3", isFixed: false, fixedMemberIds: [] },
+  { taskId: "t-cooking", isFixed: false, fixedMemberIds: [] },
 ];
 
 const SEEDS = Array.from({ length: 50 }, (_, i) => i);
@@ -62,7 +62,7 @@ describe("assignPeriod", () => {
     const settingsNoFixed = settings.map((s) => ({
       ...s,
       isFixed: false,
-      fixedMemberId: null,
+      fixedMemberIds: [],
     }));
     let winsWithFixed = 0;
     let winsWithoutFixed = 0;
@@ -194,18 +194,20 @@ describe("assignPeriod", () => {
       isDaily: i % 2 === 0,
       minAge: null,
       dayGroup: null,
+      timesPerWeek: i % 2 === 0 ? null : 3,
     }));
     const cookingTasks = Array.from({ length: 3 }, (_, i) => ({
       id: `cooking-${i}`,
       isDaily: true,
       minAge: 14,
       dayGroup: null,
+      timesPerWeek: null,
     }));
     const allTasks = [...openTasks, ...cookingTasks];
     const allSettings = allTasks.map((t) => ({
       taskId: t.id,
       isFixed: false,
-      fixedMemberId: null,
+      fixedMemberIds: [],
     }));
 
     for (const seed of SEEDS) {
@@ -246,18 +248,20 @@ describe("assignPeriod", () => {
       isDaily: false,
       minAge: null,
       dayGroup: null,
+      timesPerWeek: 3,
     }));
     const variableTasks = Array.from({ length: 22 }, (_, i) => ({
       id: `var-${i}`,
       isDaily: i % 2 === 0,
       minAge: i < 3 ? 14 : null, // a few cooking-like tasks exclude h5 (age 10)
       dayGroup: null,
+      timesPerWeek: i % 2 === 0 ? null : 3,
     }));
     const allTasks = [...fixedTasks, ...variableTasks];
     const allSettings = allTasks.map((t) =>
       fixedTaskOwner[t.id]
-        ? { taskId: t.id, isFixed: true, fixedMemberId: fixedTaskOwner[t.id] }
-        : { taskId: t.id, isFixed: false, fixedMemberId: null }
+        ? { taskId: t.id, isFixed: true, fixedMemberIds: [fixedTaskOwner[t.id]] }
+        : { taskId: t.id, isFixed: false, fixedMemberIds: [] }
     );
 
     for (const seed of SEEDS) {
@@ -284,16 +288,19 @@ describe("assignPeriod", () => {
       { id: "l2", age: 50 },
       { id: "l3", age: 34 },
     ];
+    // Non-default frequency (5, not the usual 3) — confirms the day_group
+    // sharing mechanism works with whatever frequency the group's tasks
+    // are configured with, not just the default.
     const laundryTasks = [
-      { id: "wash", isDaily: false, minAge: null, dayGroup: "laundry" },
-      { id: "dry", isDaily: false, minAge: null, dayGroup: "laundry" },
-      { id: "fold", isDaily: false, minAge: null, dayGroup: "laundry" },
-      { id: "unrelated", isDaily: false, minAge: null, dayGroup: null },
+      { id: "wash", isDaily: false, minAge: null, dayGroup: "laundry", timesPerWeek: 5 },
+      { id: "dry", isDaily: false, minAge: null, dayGroup: "laundry", timesPerWeek: 5 },
+      { id: "fold", isDaily: false, minAge: null, dayGroup: "laundry", timesPerWeek: 5 },
+      { id: "unrelated", isDaily: false, minAge: null, dayGroup: null, timesPerWeek: 2 },
     ];
     const laundrySettings = laundryTasks.map((t) => ({
       taskId: t.id,
       isFixed: false,
-      fixedMemberId: null,
+      fixedMemberIds: [],
     }));
 
     let sawDifferentMembers = false;
@@ -311,9 +318,12 @@ describe("assignPeriod", () => {
       const fold = result.find((r) => r.taskId === "fold")!;
       const unrelated = result.find((r) => r.taskId === "unrelated")!;
 
-      // Same group ⇒ always identical days, with certainty.
+      // Same group ⇒ always identical days, with certainty, at the
+      // group's own configured frequency (5, not the default 3).
+      expect(wash.dayOfWeek!.length).toBe(5);
       expect(dry.dayOfWeek).toEqual(wash.dayOfWeek);
       expect(fold.dayOfWeek).toEqual(wash.dayOfWeek);
+      expect(unrelated.dayOfWeek!.length).toBe(2);
 
       if (
         wash.memberId !== dry.memberId ||
@@ -342,15 +352,15 @@ describe("assignPeriod", () => {
       { id: "s2", age: 50 },
     ];
     const soloTasks = [
-      { id: "solo-a", isDaily: false, minAge: null, dayGroup: null },
-      { id: "solo-b", isDaily: false, minAge: null, dayGroup: null },
-      { id: "group-x", isDaily: false, minAge: null, dayGroup: "x" },
-      { id: "group-y", isDaily: false, minAge: null, dayGroup: "y" },
+      { id: "solo-a", isDaily: false, minAge: null, dayGroup: null, timesPerWeek: 3 },
+      { id: "solo-b", isDaily: false, minAge: null, dayGroup: null, timesPerWeek: 3 },
+      { id: "group-x", isDaily: false, minAge: null, dayGroup: "x", timesPerWeek: 3 },
+      { id: "group-y", isDaily: false, minAge: null, dayGroup: "y", timesPerWeek: 3 },
     ];
     const soloSettings = soloTasks.map((t) => ({
       taskId: t.id,
       isFixed: false,
-      fixedMemberId: null,
+      fixedMemberIds: [],
     }));
 
     let sawDifferentDays = false;
@@ -369,6 +379,91 @@ describe("assignPeriod", () => {
       }
     }
     expect(sawDifferentDays).toBe(true);
+  });
+
+  it("gives a task with timesPerWeek = 1 exactly 1 day", () => {
+    const freqMembers = [
+      { id: "f1", age: 34 },
+      { id: "f2", age: 50 },
+    ];
+    const freqTasks = [
+      { id: "once-weekly", isDaily: false, minAge: null, dayGroup: null, timesPerWeek: 1 },
+    ];
+    const freqSettings = [
+      { taskId: "once-weekly", isFixed: false, fixedMemberIds: [] },
+    ];
+    for (const seed of SEEDS) {
+      const result = assignPeriod(freqMembers, freqTasks, freqSettings, {}, seed);
+      const task = result.find((r) => r.taskId === "once-weekly")!;
+      expect(task.dayOfWeek!.length).toBe(1);
+      expect(task.dayOfWeek![0]).toBeGreaterThanOrEqual(0);
+      expect(task.dayOfWeek![0]).toBeLessThanOrEqual(6);
+    }
+  });
+
+  it("gives a task with timesPerWeek = 5 exactly 5 distinct days", () => {
+    const freqMembers = [
+      { id: "f1", age: 34 },
+      { id: "f2", age: 50 },
+    ];
+    const freqTasks = [
+      { id: "frequent", isDaily: false, minAge: null, dayGroup: null, timesPerWeek: 5 },
+    ];
+    const freqSettings = [
+      { taskId: "frequent", isFixed: false, fixedMemberIds: [] },
+    ];
+    for (const seed of SEEDS) {
+      const result = assignPeriod(freqMembers, freqTasks, freqSettings, {}, seed);
+      const task = result.find((r) => r.taskId === "frequent")!;
+      expect(task.dayOfWeek!.length).toBe(5);
+      expect(new Set(task.dayOfWeek!).size).toBe(5);
+    }
+  });
+
+  it("assigns a multi-member fixed task to whichever enabled member currently holds fewer tasks", () => {
+    // p1 already has 2 other fixed tasks locked to them alone; p2 and p3
+    // start even. The 3-way fixed task's pool is {p1, p2, p3} — p1 should
+    // never win it, since p1 always enters that draw already ahead.
+    const poolMembers = [
+      { id: "p1", age: 34 },
+      { id: "p2", age: 50 },
+      { id: "p3", age: 34 },
+    ];
+    const poolTasks = [
+      { id: "solo-fixed-a", isDaily: true, minAge: null, dayGroup: null, timesPerWeek: null },
+      { id: "solo-fixed-b", isDaily: true, minAge: null, dayGroup: null, timesPerWeek: null },
+      { id: "pool-fixed", isDaily: true, minAge: null, dayGroup: null, timesPerWeek: null },
+    ];
+    const poolSettings = [
+      { taskId: "solo-fixed-a", isFixed: true, fixedMemberIds: ["p1"] },
+      { taskId: "solo-fixed-b", isFixed: true, fixedMemberIds: ["p1"] },
+      { taskId: "pool-fixed", isFixed: true, fixedMemberIds: ["p1", "p2", "p3"] },
+    ];
+    for (const seed of SEEDS) {
+      const result = assignPeriod(poolMembers, poolTasks, poolSettings, {}, seed);
+      const pooled = result.find((r) => r.taskId === "pool-fixed")!;
+      expect(pooled.isFixed).toBe(true);
+      expect(pooled.memberId).not.toBe("p1");
+    }
+  });
+
+  it("breaks a tie among a fixed task's equally-loaded enabled members uniformly at random", () => {
+    const tiedMembers = [
+      { id: "t1", age: 34 },
+      { id: "t2", age: 34 },
+    ];
+    const tiedTasks = [
+      { id: "tied-fixed", isDaily: true, minAge: null, dayGroup: null, timesPerWeek: null },
+    ];
+    const tiedSettings = [
+      { taskId: "tied-fixed", isFixed: true, fixedMemberIds: ["t1", "t2"] },
+    ];
+    const winners = new Set<string>();
+    for (const seed of SEEDS) {
+      const result = assignPeriod(tiedMembers, tiedTasks, tiedSettings, {}, seed);
+      winners.add(result.find((r) => r.taskId === "tied-fixed")!.memberId);
+    }
+    expect(winners).toEqual(new Set(["t1", "t2"]));
   });
 });
 

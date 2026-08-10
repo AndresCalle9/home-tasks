@@ -14,7 +14,7 @@ export type ReviewRow = {
   taskName: string;
   isDaily: boolean;
   isFixed: boolean;
-  fixedMemberId: string | null;
+  fixedMemberIds: string[];
 };
 
 function isMonday(dateStr: string): boolean {
@@ -43,24 +43,40 @@ export async function createPeriod(
   if (periodError) return { error: periodError.message };
 
   const tasks = await listTasks();
-  const { error: settingsError } = await supabase
+  const { data: settingsRows, error: settingsError } = await supabase
     .from("period_task_settings")
     .insert(
       tasks.map((task) => ({
         period_id: period.id,
         task_id: task.id,
         is_fixed: task.defaultIsFixed,
-        fixed_member_id: task.defaultFixedMemberId,
       }))
-    );
+    )
+    .select("id, task_id");
   if (settingsError) return { error: settingsError.message };
+
+  const tasksById = new Map(tasks.map((task) => [task.id, task]));
+  const fixedMemberRows = settingsRows.flatMap((row) => {
+    const task = tasksById.get(row.task_id);
+    if (!task || !task.defaultIsFixed) return [];
+    return task.defaultFixedMemberIds.map((memberId) => ({
+      period_task_setting_id: row.id,
+      member_id: memberId,
+    }));
+  });
+  if (fixedMemberRows.length > 0) {
+    const { error: fixedError } = await supabase
+      .from("period_task_setting_fixed_members")
+      .insert(fixedMemberRows);
+    if (fixedError) return { error: fixedError.message };
+  }
 
   const rows: ReviewRow[] = tasks.map((task) => ({
     taskId: task.id,
     taskName: task.name,
     isDaily: task.isDaily,
     isFixed: task.defaultIsFixed,
-    fixedMemberId: task.defaultFixedMemberId,
+    fixedMemberIds: task.defaultFixedMemberIds,
   }));
 
   return { periodId: period.id, rows };
@@ -90,37 +106,66 @@ export async function listPeriodTaskSettings(
 ): Promise<ReviewRow[]> {
   const { data, error } = await supabase
     .from("period_task_settings")
-    .select("task_id, is_fixed, fixed_member_id, tasks(name, is_daily)")
+    .select(
+      "task_id, is_fixed, tasks(name, is_daily), period_task_setting_fixed_members(member_id)"
+    )
     .eq("period_id", periodId);
 
   if (error) throw new Error(error.message);
   return (data as unknown as Array<{
     task_id: string;
     is_fixed: boolean;
-    fixed_member_id: string | null;
     tasks: { name: string; is_daily: boolean };
+    period_task_setting_fixed_members: Array<{ member_id: string }>;
   }>).map((row) => ({
     taskId: row.task_id,
     taskName: row.tasks.name,
     isDaily: row.tasks.is_daily,
     isFixed: row.is_fixed,
-    fixedMemberId: row.fixed_member_id,
+    fixedMemberIds: row.period_task_setting_fixed_members.map((m) => m.member_id),
   }));
 }
 
 export async function updatePeriodTaskSettings(
   periodId: string,
-  rows: Array<{ taskId: string; isFixed: boolean; fixedMemberId: string | null }>
+  rows: Array<{ taskId: string; isFixed: boolean; fixedMemberIds: string[] }>
 ): Promise<{ error: string } | { ok: true }> {
-  const { error } = await supabase.from("period_task_settings").upsert(
-    rows.map((row) => ({
-      period_id: periodId,
-      task_id: row.taskId,
-      is_fixed: row.isFixed,
-      fixed_member_id: row.fixedMemberId,
-    })),
-    { onConflict: "period_id,task_id" }
-  );
+  const { data: settingsRows, error } = await supabase
+    .from("period_task_settings")
+    .upsert(
+      rows.map((row) => ({
+        period_id: periodId,
+        task_id: row.taskId,
+        is_fixed: row.isFixed,
+      })),
+      { onConflict: "period_id,task_id" }
+    )
+    .select("id, task_id");
   if (error) return { error: error.message };
+
+  const settingIdByTaskId = new Map(settingsRows.map((r) => [r.task_id, r.id]));
+  const settingIds = settingsRows.map((r) => r.id);
+
+  const { error: deleteError } = await supabase
+    .from("period_task_setting_fixed_members")
+    .delete()
+    .in("period_task_setting_id", settingIds);
+  if (deleteError) return { error: deleteError.message };
+
+  const fixedMemberRows = rows.flatMap((row) => {
+    const settingId = settingIdByTaskId.get(row.taskId);
+    if (!settingId || !row.isFixed) return [];
+    return row.fixedMemberIds.map((memberId) => ({
+      period_task_setting_id: settingId,
+      member_id: memberId,
+    }));
+  });
+  if (fixedMemberRows.length > 0) {
+    const { error: insertError } = await supabase
+      .from("period_task_setting_fixed_members")
+      .insert(fixedMemberRows);
+    if (insertError) return { error: insertError.message };
+  }
+
   return { ok: true };
 }

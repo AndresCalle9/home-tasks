@@ -20,17 +20,31 @@ create table tasks (
   -- false: happens once per period and needs a specific day assigned (e.g. Barrer).
   is_daily boolean not null default false,
   default_is_fixed boolean not null default false,
-  default_fixed_member_id uuid references members(id),
   -- null: no age restriction. Set: only members at or above this age are
   -- eligible for this task in the assignment lottery.
   min_age smallint check (min_age is null or min_age >= 0),
   -- null: this task's days are independent of every other task's. Set:
-  -- every task sharing this same value always lands on the same 3 days
-  -- per period (e.g. washing and hanging laundry to dry on the same days).
+  -- every task sharing this same value always lands on the same days per
+  -- period (e.g. washing and hanging laundry to dry on the same days).
+  -- Tasks in the same group must share the same times_per_week.
   day_group text,
-  created_at timestamptz not null default now(),
-  constraint fixed_task_has_member
-    check (default_is_fixed = false or default_fixed_member_id is not null)
+  -- Only meaningful when is_daily = false: how many distinct days a week
+  -- this task gets assigned, out of 7 (e.g. once a week vs. every other
+  -- day). Null for daily tasks.
+  times_per_week smallint check (times_per_week is null or (times_per_week between 1 and 7)),
+  created_at timestamptz not null default now()
+  -- A fixed task must have at least one row in task_default_fixed_members
+  -- — enforced in application code (CRUD), not a DB constraint, since
+  -- Postgres can't check a join table's row count in a column check.
+);
+
+-- One or more members enabled for a task's default fixed assignment. At
+-- sorteo time the winner among them is whoever currently holds the fewest
+-- tasks (see lib/algorithm/assign.ts) — not a fixed single person anymore.
+create table task_default_fixed_members (
+  task_id uuid not null references tasks(id) on delete cascade,
+  member_id uuid not null references members(id),
+  primary key (task_id, member_id)
 );
 
 create table periods (
@@ -53,10 +67,19 @@ create table period_task_settings (
   period_id uuid not null references periods(id) on delete cascade,
   task_id uuid not null references tasks(id) on delete cascade,
   is_fixed boolean not null,
-  fixed_member_id uuid references members(id),
-  unique (period_id, task_id),
-  constraint fixed_setting_has_member
-    check (is_fixed = false or fixed_member_id is not null)
+  unique (period_id, task_id)
+  -- A fixed setting must have at least one row in
+  -- period_task_setting_fixed_members — enforced in application code, same
+  -- reasoning as tasks.default_is_fixed above.
+);
+
+-- One or more members enabled for this period's fixed assignment of a
+-- task, seeded from task_default_fixed_members when the period is created
+-- and editable for that period only.
+create table period_task_setting_fixed_members (
+  period_task_setting_id uuid not null references period_task_settings(id) on delete cascade,
+  member_id uuid not null references members(id),
+  primary key (period_task_setting_id, member_id)
 );
 
 -- Final assignment result for a period: who does each task.
@@ -76,12 +99,34 @@ create table assignments (
   unique (period_id, task_id, day_of_week)
 );
 
+-- Per-day completion tracking, kept separate from `assignments` because a
+-- daily task has a single row spanning all 7 days: a `completed` column on
+-- that row could only track one shared state for the whole week, not
+-- independently per day. Keying by day here (looked up by the day being
+-- rendered, not by assignments.day_of_week, which is null for daily tasks)
+-- also means this never touches assignments' row-counting semantics, which
+-- getHistoricalTaskCount relies on for cross-period balance.
+create table assignment_completions (
+  id uuid primary key default gen_random_uuid(),
+  assignment_id uuid not null references assignments(id) on delete cascade,
+  day_of_week smallint not null check (day_of_week between 0 and 6),
+  completed boolean not null default false,
+  updated_at timestamptz not null default now(),
+  unique (assignment_id, day_of_week)
+);
+
 create index assignments_period_id_idx on assignments(period_id);
 create index assignments_member_id_idx on assignments(member_id);
 create index period_task_settings_period_id_idx on period_task_settings(period_id);
+create index task_default_fixed_members_member_id_idx on task_default_fixed_members(member_id);
+create index period_task_setting_fixed_members_member_id_idx on period_task_setting_fixed_members(member_id);
+create index assignment_completions_assignment_id_idx on assignment_completions(assignment_id);
 
 alter table members enable row level security;
 alter table tasks enable row level security;
+alter table task_default_fixed_members enable row level security;
 alter table periods enable row level security;
 alter table period_task_settings enable row level security;
+alter table period_task_setting_fixed_members enable row level security;
 alter table assignments enable row level security;
+alter table assignment_completions enable row level security;

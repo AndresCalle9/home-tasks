@@ -5,19 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PeriodReviewTable } from "@/components/period-review-table";
-import {
-  createPeriodAction,
-  confirmAssignmentAction,
-} from "@/app/calendario/asignar/actions";
+import { createPeriodAction } from "@/app/calendario/asignar/actions";
 import type { Member } from "@/lib/data/members";
 
 export function AssignWizard({ members }: { members: Member[] }) {
   const [defineState, defineFormAction, definePending] = useActionState(
     createPeriodAction,
-    {}
-  );
-  const [confirmState, confirmFormAction, confirmPending] = useActionState(
-    confirmAssignmentAction,
     {}
   );
   const [clientError, setClientError] = useState<string | null>(null);
@@ -28,9 +21,6 @@ export function AssignWizard({ members }: { members: Member[] }) {
         periodId={defineState.periodId}
         initialRows={defineState.rows}
         members={members}
-        action={confirmFormAction}
-        state={confirmState}
-        pending={confirmPending}
       />
     );
   }

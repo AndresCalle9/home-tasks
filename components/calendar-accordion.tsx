@@ -69,6 +69,7 @@ export function CalendarAccordion({
                     memberIndex={memberIndexById.get(group.member.id) ?? 0}
                     members={members}
                     periodId={periodId}
+                    dayOfWeek={day.dayOfWeek}
                   />
                 ))}
               </div>

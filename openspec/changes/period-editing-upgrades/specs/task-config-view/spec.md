@@ -1,9 +1,4 @@
-# task-config-view Specification
-
-## Purpose
-TBD - created by archiving change ui-shell-mockup. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Read-Only Members List
 The system SHALL display, on the "Configuración" tab, the household's real
@@ -40,48 +35,51 @@ create, edit, and delete members (`name`, `age`).
   the new values in the list
 
 #### Scenario: Deleting a member with no references
-- **WHEN** a user confirms deleting a member who is not set as any task's
-  fixed responsible person
+- **WHEN** a user confirms deleting a member who is not one of any task's
+  enabled fixed members (default or per-period)
 - **THEN** the system SHALL delete the member and remove them from the list
 
-#### Scenario: Deleting a member who is a task's fixed responsible person
-- **WHEN** a user confirms deleting a member who is currently set as the
-  fixed responsible person for one or more tasks
+#### Scenario: Deleting a member who is one of a task's fixed members
+- **WHEN** a user confirms deleting a member who is currently one of the
+  enabled fixed members for one or more tasks (their default fixed members,
+  or a period's fixed members for that task), even if other members are
+  also enabled for that same task
 - **THEN** the system SHALL NOT delete the member
-- **THEN** the system SHALL show an inline error asking the user to
-  reassign those tasks first
+- **THEN** the system SHALL show an inline error asking the user to remove
+  them from those tasks first
 
 ### Requirement: Read-Only Tasks List
 The system SHALL display, on the "Configuración" tab, the household's real
 tasks (from the `tasks` table in Supabase), and SHALL let a user create,
-edit, and delete tasks (`name`, `is_daily`, `default_is_fixed`,
-`default_fixed_member_id`, `min_age`, `day_group`, `times_per_week`).
+edit, and delete tasks (`name`, `is_daily`, `default_is_fixed`, its default
+fixed members, `min_age`, `day_group`, `times_per_week`).
 
 #### Scenario: Viewing tasks in Configuración
 - **WHEN** a user opens the "Configuración" tab
 - **THEN** the system SHALL show each real task's name, whether it is daily
-  or once-per-period, whether it is fixed (and to which member, if fixed),
-  its minimum age when one is set, its day group when one is set, and its
-  weekly frequency when the task is once-per-period
+  or once-per-period, whether it is fixed (and to which member(s), if
+  fixed), its minimum age when one is set, its day group when one is set,
+  and its weekly frequency when the task is once-per-period
 
 #### Scenario: Creating a variable task
 - **WHEN** a user submits the "Nueva tarea" form with a name and marks it
   as not fixed
 - **THEN** the system SHALL create the task in Supabase with
-  `default_is_fixed = false` and `default_fixed_member_id = null`, and show
-  it in the list without a manual page refresh
+  `default_is_fixed = false` and no default fixed members, and show it in
+  the list without a manual page refresh
 
-#### Scenario: Creating a fixed task without selecting a member
-- **WHEN** a user marks a task as fixed but does not select a responsible
-  member
+#### Scenario: Creating a fixed task without selecting any member
+- **WHEN** a user marks a task as fixed but does not select at least one
+  responsible member
 - **THEN** the system SHALL reject the submission
-- **THEN** the system SHALL show an inline error asking for the responsible
-  member
+- **THEN** the system SHALL show an inline error asking for at least one
+  responsible member
 
-#### Scenario: Creating a fixed task with a selected member
-- **WHEN** a user marks a task as fixed and selects an existing member
+#### Scenario: Creating a fixed task with one or more selected members
+- **WHEN** a user marks a task as fixed and selects one or more existing
+  members
 - **THEN** the system SHALL create the task with `default_is_fixed = true`
-  and `default_fixed_member_id` set to that member
+  and all of the selected members saved as its default fixed members
 
 #### Scenario: Creating a task with a duplicate name
 - **WHEN** a user submits a name that already belongs to another task
@@ -137,9 +135,15 @@ edit, and delete tasks (`name`, `is_daily`, `default_is_fixed`,
 - **THEN** the system SHALL show an inline error naming the mismatched
   frequency
 
+#### Scenario: Editing a task's fixed members
+- **WHEN** a user edits an existing fixed task's selected members and
+  submits, adding or removing one or more members
+- **THEN** the system SHALL replace that task's default fixed members with
+  exactly the newly selected set
+
 #### Scenario: Editing a task
 - **WHEN** a user edits an existing task's name, `is_daily`, `min_age`,
-  `day_group`, `times_per_week`, or fixed status/member and submits
+  `day_group`, `times_per_week`, or fixed status/members and submits
 - **THEN** the system SHALL update that task's row in Supabase and reflect
   the new values in the list
 

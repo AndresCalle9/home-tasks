@@ -15,13 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { FixedMemberChecklist } from "@/components/fixed-member-checklist";
 import { createTaskAction, updateTaskAction } from "@/app/configuracion/actions";
 import { useCloseOnActionSuccess } from "@/lib/hooks/use-close-on-action-success";
 import type { Member } from "@/lib/data/members";
@@ -39,6 +33,9 @@ export function TaskFormDialog({
   const [open, setOpen] = useState(false);
   const [isFixed, setIsFixed] = useState(task?.defaultIsFixed ?? false);
   const [isDaily, setIsDaily] = useState(task?.isDaily ?? false);
+  const [fixedMemberIds, setFixedMemberIds] = useState(
+    task?.defaultFixedMemberIds ?? []
+  );
   useCloseOnActionSuccess(state, setOpen);
 
   return (
@@ -96,6 +93,22 @@ export function TaskFormDialog({
 
           {!isDaily && (
             <div className="flex flex-col gap-1.5">
+              <Label htmlFor="task-times-per-week">Veces por semana</Label>
+              <Input
+                id="task-times-per-week"
+                name="timesPerWeek"
+                type="number"
+                min={1}
+                max={7}
+                step={1}
+                defaultValue={task?.timesPerWeek ?? 3}
+                required
+              />
+            </div>
+          )}
+
+          {!isDaily && (
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="task-day-group">Grupo de día (opcional)</Label>
               <Input
                 id="task-day-group"
@@ -104,14 +117,15 @@ export function TaskFormDialog({
                 defaultValue={task?.dayGroup ?? ""}
               />
               <p className="text-xs text-muted-foreground">
-                Tareas con el mismo grupo siempre caen en los mismos 3 días
-                de la semana (ej. lavar y extender ropa).
+                Tareas con el mismo grupo siempre caen en los mismos días de
+                la semana (ej. lavar y extender ropa) — deben tener las
+                mismas veces por semana.
               </p>
             </div>
           )}
 
           <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="task-fixed">Es fija (siempre la misma persona)</Label>
+            <Label htmlFor="task-fixed">Es fija (mismo(s) responsable(s) cada periodo)</Label>
             <Switch
               id="task-fixed"
               name="defaultIsFixed"
@@ -123,28 +137,13 @@ export function TaskFormDialog({
 
           {isFixed && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="task-fixed-member">Responsable fijo</Label>
-              <Select
-                name="defaultFixedMemberId"
-                defaultValue={task?.defaultFixedMemberId ?? undefined}
-                items={Object.fromEntries(members.map((m) => [m.id, m.name]))}
-                required
-              >
-                <SelectTrigger id="task-fixed-member" className="w-full">
-                  <SelectValue placeholder="Elige un integrante">
-                    {(value: string | null) =>
-                      members.find((m) => m.id === value)?.name ?? ""
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {members.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Responsable(s) fijo(s)</Label>
+              <FixedMemberChecklist
+                name="defaultFixedMemberIds"
+                members={members}
+                selectedIds={fixedMemberIds}
+                onChange={setFixedMemberIds}
+              />
             </div>
           )}
 

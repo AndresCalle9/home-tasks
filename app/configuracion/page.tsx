@@ -12,7 +12,6 @@ export const dynamic = "force-dynamic";
 
 export default async function ConfiguracionPage() {
   const [members, tasks] = await Promise.all([listMembers(), listTasks()]);
-  const memberIndexById = new Map(members.map((m, i) => [m.id, i]));
   const memberById = new Map(members.map((m) => [m.id, m]));
 
   return (
@@ -45,18 +44,14 @@ export default async function ConfiguracionPage() {
         </div>
         <ul className="flex flex-col gap-2">
           {tasks.map((task) => {
-            const fixedMember =
-              task.defaultIsFixed && task.defaultFixedMemberId
-                ? memberById.get(task.defaultFixedMemberId) ?? null
-                : null;
+            const fixedMembers = task.defaultFixedMemberIds
+              .map((id) => memberById.get(id))
+              .filter((m): m is (typeof members)[number] => m != null);
             return (
               <TaskRow
                 key={task.id}
                 task={task}
-                fixedMember={fixedMember}
-                fixedMemberIndex={
-                  fixedMember ? memberIndexById.get(fixedMember.id) ?? 0 : 0
-                }
+                fixedMembers={fixedMembers}
                 members={members}
               />
             );

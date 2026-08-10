@@ -1,8 +1,8 @@
 import { mulberry32, pickDistinctDays, pickUniform } from "./rng";
 
-// Once-per-period tasks occur this many days a week, always (not
-// configurable per task in this MVP).
-const DAYS_PER_WEEK_FOR_NON_DAILY_TASK = 3;
+// Fallback for a non-daily task missing a configured frequency (should not
+// happen once the CRUD requires one — see design.md).
+const DEFAULT_TIMES_PER_WEEK = 3;
 
 export type AlgorithmMember = {
   id: string;
@@ -14,12 +14,13 @@ export type AlgorithmTask = {
   isDaily: boolean;
   minAge: number | null;
   dayGroup: string | null;
+  timesPerWeek: number | null;
 };
 
 export type PeriodTaskSetting = {
   taskId: string;
   isFixed: boolean;
-  fixedMemberId: string | null;
+  fixedMemberIds: string[];
 };
 
 export type AssignmentResult = {
@@ -72,7 +73,7 @@ export function assignPeriod(
     if (!dayGroupCache.has(groupKey)) {
       dayGroupCache.set(
         groupKey,
-        pickDistinctDays(rng, DAYS_PER_WEEK_FOR_NON_DAILY_TASK)
+        pickDistinctDays(rng, task.timesPerWeek ?? DEFAULT_TIMES_PER_WEEK)
       );
     }
     return dayGroupCache.get(groupKey)!;
@@ -86,11 +87,23 @@ export function assignPeriod(
     else variable.push(task);
   }
 
+  const memberById = new Map(members.map((m) => [m.id, m]));
   for (const task of fixed) {
     const setting = settingsByTaskId.get(task.id)!;
+    // Least-loaded pick among this task's configured fixed members — same
+    // tie-break rule as the variable lottery below. Falls back to the full
+    // eligible pool if a fixed task somehow has no configured members
+    // (should be impossible once the CRUD enforces at least one).
+    const candidates = setting.fixedMemberIds
+      .map((id) => memberById.get(id))
+      .filter((m): m is AlgorithmMember => m != null);
+    const pool = candidates.length > 0 ? candidates : eligibleMembers(members, task);
+    const minCount = Math.min(...pool.map((m) => runningCount[m.id] ?? 0));
+    const leastLoaded = pool.filter((m) => (runningCount[m.id] ?? 0) === minCount);
+    const winner = pickUniform(rng, leastLoaded);
     results.push({
       taskId: task.id,
-      memberId: setting.fixedMemberId!,
+      memberId: winner.id,
       dayOfWeek: daysFor(task),
       isFixed: true,
     });
@@ -100,8 +113,7 @@ export function assignPeriod(
     // of variable ones. Cross-period historicalTaskCount stays
     // variable-only (unaffected here), so a permanent fixed responsibility
     // doesn't keep depressing a member's odds in future periods.
-    runningCount[setting.fixedMemberId!] =
-      (runningCount[setting.fixedMemberId!] ?? 0) + 1;
+    runningCount[winner.id] = (runningCount[winner.id] ?? 0) + 1;
   }
 
   for (const task of variable) {
