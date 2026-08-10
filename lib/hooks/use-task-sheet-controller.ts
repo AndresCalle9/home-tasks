@@ -7,9 +7,11 @@ export type Duel = {
   candidates: Assignment[];
 };
 
-// Other assignments the requester could offer to swap for: same effort
-// level as their own task, held by someone else, not already done, and
-// something the requester is actually eligible to take on.
+// Other assignments the requester could offer to swap for: the same day
+// (swapping "who" without also swapping "when" would be confusing — see
+// the day/effort restriction below) and the same effort level as their own
+// task, held by someone else, not already done, and something the
+// requester is actually eligible to take on.
 export function findDuelCandidates(
   assignment: Assignment,
   assignments: Assignment[],
@@ -22,6 +24,7 @@ export function findDuelCandidates(
   return assignments.filter((a) => {
     if (a.id === assignment.id || !a.memberId || a.memberId === requesterId) return false;
     if (a.status === "completed") return false;
+    if (a.dayOfWeek !== assignment.dayOfWeek) return false;
     const task = taskById.get(a.taskId);
     if (!task) return false;
     return task.eligibleMemberIds.includes(requesterId) && task.effort === myTask.effort;

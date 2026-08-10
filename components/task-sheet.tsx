@@ -123,7 +123,8 @@ export function TaskSheet({
                 </Button>
                 {!hasDuelOptions && (
                   <p className="-mt-1 text-center text-xs text-muted-foreground">
-                    Solo puedes retar por tareas de nivel {EFFORT_LABEL[task.effort]}
+                    Solo puedes retar por tareas del mismo día y de nivel{" "}
+                    {EFFORT_LABEL[task.effort]}
                   </p>
                 )}
               </>

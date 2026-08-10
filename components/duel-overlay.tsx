@@ -99,131 +99,134 @@ export function DuelOverlay({
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-10 text-center">
-        {stage === "choose" && (
-          <div className="w-full max-w-sm">
-            <div className="mb-1.5 text-xl font-bold">¿Por cuál la cambiarías?</div>
-            <p className="mb-5 text-sm text-muted-foreground">
-              Ofreces <b className="text-foreground">{myTask.icon} {myTask.name}</b> · solo
-              tareas de nivel <b className="text-foreground">{EFFORT_LABEL[myTask.effort]}</b>
-            </p>
-            <div className="flex flex-col gap-2 text-left">
-              {duel.candidates.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Nadie tiene ahora mismo una tarea de nivel{" "}
-                  {EFFORT_LABEL[myTask.effort].toLowerCase()} disponible para retar.
-                </p>
-              )}
-              {duel.candidates.map((a) => {
-                const t = taskById.get(a.taskId);
-                const m = memberById.get(a.memberId ?? "");
-                if (!t || !m) return null;
-                return (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() => {
-                      setTargetAssignmentId(a.id);
-                      setStage("confirm");
-                    }}
-                    className="flex items-center gap-3 rounded-xl bg-card p-3 shadow-xs ring-1 ring-foreground/10"
-                  >
-                    <span className="text-xl">{t.icon}</span>
-                    <span className="flex-1">
-                      <span className="block text-sm font-semibold">{t.name}</span>
-                      <span className="text-xs font-semibold" style={{ color: m.color }}>
-                        {m.name}
+      <div className="flex-1 overflow-y-auto">
+        <div className="flex min-h-full flex-col items-center justify-center px-6 pb-10 text-center">
+          {stage === "choose" && (
+            <div className="w-full max-w-sm">
+              <div className="mb-1.5 text-xl font-bold">¿Por cuál la cambiarías?</div>
+              <p className="mb-5 text-sm text-muted-foreground">
+                Ofreces <b className="text-foreground">{myTask.icon} {myTask.name}</b> · solo
+                tareas del mismo día y de nivel{" "}
+                <b className="text-foreground">{EFFORT_LABEL[myTask.effort]}</b>
+              </p>
+              <div className="flex flex-col gap-2 text-left">
+                {duel.candidates.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Nadie tiene hoy una tarea de nivel{" "}
+                    {EFFORT_LABEL[myTask.effort].toLowerCase()} disponible para retar.
+                  </p>
+                )}
+                {duel.candidates.map((a) => {
+                  const t = taskById.get(a.taskId);
+                  const m = memberById.get(a.memberId ?? "");
+                  if (!t || !m) return null;
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => {
+                        setTargetAssignmentId(a.id);
+                        setStage("confirm");
+                      }}
+                      className="flex items-center gap-3 rounded-xl bg-card p-3 shadow-xs ring-1 ring-foreground/10"
+                    >
+                      <span className="text-xl">{t.icon}</span>
+                      <span className="flex-1">
+                        <span className="block text-sm font-semibold">{t.name}</span>
+                        <span className="text-xs font-semibold" style={{ color: m.color }}>
+                          {m.name}
+                        </span>
                       </span>
-                    </span>
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {stage === "confirm" && challenged && theirTask && (
-          <div className="w-full max-w-xs">
-            <div className="mb-6 text-xl font-bold">✌️ Duelo en casa</div>
-            <DuelVs a={{ member: requester, task: myTask }} b={{ member: challenged, task: theirTask }} />
-            <p className="my-6 text-sm text-muted-foreground">Si ganas, intercambiáis las tareas.</p>
-            <Button onClick={() => setStage("invite")}>Enviar reto</Button>
-            <Button variant="ghost" className="mt-2" onClick={() => setStage("choose")}>
-              Volver
-            </Button>
-          </div>
-        )}
-
-        {stage === "invite" && challenged && theirTask && (
-          <div className="w-full max-w-xs">
-            <Avatar member={challenged} size={64} />
-            <div className="mt-4 mb-1 text-lg font-bold">👋 {challenged.name}, te retan</div>
-            <p className="mb-6 text-sm text-muted-foreground">
-              {requester.name} quiere cambiar <b className="text-foreground">{myTask.name}</b> por{" "}
-              <b className="text-foreground">{theirTask.name}</b>
-            </p>
-            <Button onClick={() => setStage("pass-p1")}>✌️ Aceptar duelo</Button>
-            <Button variant="ghost" className="mt-2" onClick={onClose}>
-              Ahora no
-            </Button>
-          </div>
-        )}
-
-        {stage === "pass-p1" && (
-          <PassScreen name={requester.name} onReady={() => setStage("play-p1")} />
-        )}
-
-        {stage === "play-p1" && (
-          <MoveScreen
-            name={requester.name}
-            onPick={(move) => {
-              setP1Move(move);
-              setStage("pass-p2");
-            }}
-          />
-        )}
-
-        {stage === "pass-p2" && challenged && (
-          <PassScreen name={challenged.name} onReady={() => setStage("play-p2")} />
-        )}
-
-        {stage === "play-p2" && challenged && (
-          <MoveScreen
-            name={challenged.name}
-            onPick={(move) => {
-              setP2Move(move);
-              setStage("reveal");
-            }}
-          />
-        )}
-
-        {stage === "reveal" && p1Move && p2Move && challenged && (
-          <div className="w-full max-w-xs">
-            <div className="mb-5 flex items-center justify-center gap-8">
-              <MoveReveal name={requester.name} move={p1Move} />
-              <div className="self-center font-bold text-muted-foreground">VS</div>
-              <MoveReveal name={challenged.name} move={p2Move} />
+          {stage === "confirm" && challenged && theirTask && (
+            <div className="w-full max-w-xs">
+              <div className="mb-6 text-xl font-bold">✌️ Duelo en casa</div>
+              <DuelVs a={{ member: requester, task: myTask }} b={{ member: challenged, task: theirTask }} />
+              <p className="my-6 text-sm text-muted-foreground">Si ganas, intercambiáis las tareas.</p>
+              <Button onClick={() => setStage("invite")}>Enviar reto</Button>
+              <Button variant="ghost" className="mt-2" onClick={() => setStage("choose")}>
+                Volver
+              </Button>
             </div>
-            <Button onClick={() => setStage(`result-${beats(p1Move, p2Move)}`)}>
-              Ver resultado
-            </Button>
-          </div>
-        )}
+          )}
 
-        {stage.startsWith("result-") && challenged && (
-          <ResultScreen
-            stage={stage}
-            challengedName={challenged.name}
-            resolvePending={resolvePending}
-            resolveError={resolveState.error}
-            onRematch={() => {
-              setP1Move(null);
-              setP2Move(null);
-              setStage("pass-p1");
-            }}
-            onFinish={finish}
-          />
-        )}
+          {stage === "invite" && challenged && theirTask && (
+            <div className="w-full max-w-xs">
+              <Avatar member={challenged} size={64} />
+              <div className="mt-4 mb-1 text-lg font-bold">👋 {challenged.name}, te retan</div>
+              <p className="mb-6 text-sm text-muted-foreground">
+                {requester.name} quiere cambiar <b className="text-foreground">{myTask.name}</b> por{" "}
+                <b className="text-foreground">{theirTask.name}</b>
+              </p>
+              <Button onClick={() => setStage("pass-p1")}>✌️ Aceptar duelo</Button>
+              <Button variant="ghost" className="mt-2" onClick={onClose}>
+                Ahora no
+              </Button>
+            </div>
+          )}
+
+          {stage === "pass-p1" && (
+            <PassScreen name={requester.name} onReady={() => setStage("play-p1")} />
+          )}
+
+          {stage === "play-p1" && (
+            <MoveScreen
+              name={requester.name}
+              onPick={(move) => {
+                setP1Move(move);
+                setStage("pass-p2");
+              }}
+            />
+          )}
+
+          {stage === "pass-p2" && challenged && (
+            <PassScreen name={challenged.name} onReady={() => setStage("play-p2")} />
+          )}
+
+          {stage === "play-p2" && challenged && (
+            <MoveScreen
+              name={challenged.name}
+              onPick={(move) => {
+                setP2Move(move);
+                setStage("reveal");
+              }}
+            />
+          )}
+
+          {stage === "reveal" && p1Move && p2Move && challenged && (
+            <div className="w-full max-w-xs">
+              <div className="mb-5 flex items-center justify-center gap-8">
+                <MoveReveal name={requester.name} move={p1Move} />
+                <div className="self-center font-bold text-muted-foreground">VS</div>
+                <MoveReveal name={challenged.name} move={p2Move} />
+              </div>
+              <Button onClick={() => setStage(`result-${beats(p1Move, p2Move)}`)}>
+                Ver resultado
+              </Button>
+            </div>
+          )}
+
+          {stage.startsWith("result-") && challenged && (
+            <ResultScreen
+              stage={stage}
+              challengedName={challenged.name}
+              resolvePending={resolvePending}
+              resolveError={resolveState.error}
+              onRematch={() => {
+                setP1Move(null);
+                setP2Move(null);
+                setStage("pass-p1");
+              }}
+              onFinish={finish}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
