@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useCloseOnActionSuccess } from "@/lib/hooks/use-close-on-action-success";
-import type { ActionState } from "@/app/configuracion/actions";
+
+type ActionState = { error?: string; ok?: true };
 
 export function DeleteConfirmDialog({
   id,
@@ -23,16 +24,21 @@ export function DeleteConfirmDialog({
   title,
   description,
   triggerLabel,
+  onSuccess,
 }: {
   id: string;
   action: (prevState: ActionState, formData: FormData) => Promise<ActionState>;
   title: string;
   description: string;
   triggerLabel: string;
+  onSuccess?: () => void;
 }) {
   const [state, formAction, isPending] = useActionState(action, {});
   const [open, setOpen] = useState(false);
-  useCloseOnActionSuccess(state, setOpen);
+  useCloseOnActionSuccess(state, (next) => {
+    setOpen(next);
+    if (!next) onSuccess?.();
+  });
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>

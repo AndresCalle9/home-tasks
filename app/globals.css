@@ -8,8 +8,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-display: var(--font-display);
-  --font-heading: var(--font-display);
+  --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,92 +48,78 @@
 }
 
 /*
-  Home Tasks palette: a fridge chore chart, digitized. Soft sage "paper"
-  background, one deep pine accent for actions, warm line/border tone.
-  Per-person tagging colors live separately, see --person-1..5 below.
+  Home Tasks palette (v2 — visual redesign): warm cream paper background,
+  one lavender accent for actions, soft white cards. Household members pick
+  their own explicit color (stored per-row), so there is no per-index
+  --person-N palette anymore — see lib/color.ts.
 */
 :root {
-  --background: #eef0e6;
-  --foreground: #23291f;
-  --card: #fbfaf4;
-  --card-foreground: #23291f;
-  --popover: #fbfaf4;
-  --popover-foreground: #23291f;
-  --primary: #2c6b54;
-  --primary-foreground: #f7f8f2;
-  --secondary: #e3e6d6;
-  --secondary-foreground: #23291f;
-  --muted: #e3e6d6;
-  --muted-foreground: #5b6155;
-  --accent: #dde8e0;
-  --accent-foreground: #224636;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #d9dbcb;
-  --input: #d9dbcb;
-  --ring: #2c6b54;
-  --chart-1: #c98a2b;
-  --chart-2: #3e7cb1;
-  --chart-3: #bf5b3c;
-  --chart-4: #5f8f52;
-  --chart-5: #8c5a8a;
-  --radius: 0.75rem;
-  --sidebar: #e3e6d6;
-  --sidebar-foreground: #23291f;
-  --sidebar-primary: #2c6b54;
-  --sidebar-primary-foreground: #f7f8f2;
-  --sidebar-accent: #dde8e0;
-  --sidebar-accent-foreground: #224636;
-  --sidebar-border: #d9dbcb;
-  --sidebar-ring: #2c6b54;
-
-  /* Per-person tagging colors (household members), used as small accents:
-     avatar chips, a task card's left-edge tab. Assigned by index, not tied
-     to any single person's identity. */
-  --person-1: #c98a2b; /* amber */
-  --person-2: #3e7cb1; /* denim */
-  --person-3: #bf5b3c; /* terracotta */
-  --person-4: #5f8f52; /* moss */
-  --person-5: #8c5a8a; /* plum */
+  --background: #faf9f6;
+  --foreground: #292827;
+  --card: #ffffff;
+  --card-foreground: #292827;
+  --popover: #ffffff;
+  --popover-foreground: #292827;
+  --primary: #7766e8;
+  --primary-foreground: #ffffff;
+  --secondary: #edeafb;
+  --secondary-foreground: #7766e8;
+  --muted: #f1f0ec;
+  --muted-foreground: #8a8783;
+  --accent: #edeafb;
+  --accent-foreground: #7766e8;
+  --destructive: #e2725b;
+  --border: #ece9e4;
+  --input: #ece9e4;
+  --ring: #7766e8;
+  --chart-1: #8bc9a5;
+  --chart-2: #84b8df;
+  --chart-3: #efa66e;
+  --chart-4: #f5ca67;
+  --chart-5: #eea5b5;
+  --radius: 1rem;
+  --sidebar: #f1f0ec;
+  --sidebar-foreground: #292827;
+  --sidebar-primary: #7766e8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #edeafb;
+  --sidebar-accent-foreground: #7766e8;
+  --sidebar-border: #ece9e4;
+  --sidebar-ring: #7766e8;
 }
 
 .dark {
-  --background: #1a201a;
-  --foreground: #edefe6;
-  --card: #232920;
-  --card-foreground: #edefe6;
-  --popover: #232920;
-  --popover-foreground: #edefe6;
-  --primary: #55a684;
-  --primary-foreground: #10251c;
-  --secondary: #2b3226;
-  --secondary-foreground: #edefe6;
-  --muted: #2b3226;
-  --muted-foreground: #a9ae9e;
-  --accent: #2c3a2f;
-  --accent-foreground: #bfe2cd;
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: #333a2d;
-  --input: #333a2d;
-  --ring: #55a684;
-  --chart-1: #d9a441;
-  --chart-2: #6ba3d1;
-  --chart-3: #d17c5a;
-  --chart-4: #7fae70;
-  --chart-5: #ab7ea8;
-  --sidebar: #202620;
-  --sidebar-foreground: #edefe6;
-  --sidebar-primary: #55a684;
-  --sidebar-primary-foreground: #10251c;
-  --sidebar-accent: #2c3a2f;
-  --sidebar-accent-foreground: #bfe2cd;
-  --sidebar-border: #333a2d;
-  --sidebar-ring: #55a684;
-
-  --person-1: #d9a441;
-  --person-2: #6ba3d1;
-  --person-3: #d17c5a;
-  --person-4: #7fae70;
-  --person-5: #ab7ea8;
+  --background: #1c1b1a;
+  --foreground: #f5f3f0;
+  --card: #262524;
+  --card-foreground: #f5f3f0;
+  --popover: #262524;
+  --popover-foreground: #f5f3f0;
+  --primary: #9b8cf0;
+  --primary-foreground: #1c1b1a;
+  --secondary: #322d4c;
+  --secondary-foreground: #cbc2f7;
+  --muted: #2c2a28;
+  --muted-foreground: #a6a29d;
+  --accent: #322d4c;
+  --accent-foreground: #cbc2f7;
+  --destructive: #e88870;
+  --border: #34322f;
+  --input: #34322f;
+  --ring: #9b8cf0;
+  --chart-1: #8bc9a5;
+  --chart-2: #84b8df;
+  --chart-3: #efa66e;
+  --chart-4: #f5ca67;
+  --chart-5: #eea5b5;
+  --sidebar: #262524;
+  --sidebar-foreground: #f5f3f0;
+  --sidebar-primary: #9b8cf0;
+  --sidebar-primary-foreground: #1c1b1a;
+  --sidebar-accent: #322d4c;
+  --sidebar-accent-foreground: #cbc2f7;
+  --sidebar-border: #34322f;
+  --sidebar-ring: #9b8cf0;
 }
 
 @layer base {

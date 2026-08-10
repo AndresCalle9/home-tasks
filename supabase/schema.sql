@@ -1,132 +1,87 @@
--- Home Tasks: initial schema
--- Run once against the Supabase project (SQL Editor or `supabase db execute`).
+-- Home Tasks: schema (v2 — visual redesign)
+-- Run once against a fresh Supabase project (SQL Editor or `supabase db
+-- execute`). For an existing v1 database, run migration_v2.sql instead —
+-- this file is the target shape, not an upgrade script.
 -- Row Level Security is enabled with NO policies: only the service_role key
 -- (server-side only, used by the Next.js API layer) can read/write these
 -- tables. The anon/publishable key gets zero access by default.
 
 create extension if not exists pgcrypto;
 
+-- Singleton row holding the household's display name (edited from Ajustes).
+create table household (
+  id smallint primary key default 1 check (id = 1),
+  name text not null default 'Nuestro hogar'
+);
+insert into household (id, name) values (1, 'Nuestro hogar');
+
 create table members (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
-  age smallint not null check (age >= 0),
+  -- Hex color used for this member's avatar/pill across the app.
+  color text not null,
   created_at timestamptz not null default now()
 );
 
 create table tasks (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
-  -- true: happens every day of the period (e.g. Cocinar Desayuno).
-  -- false: happens once per period and needs a specific day assigned (e.g. Barrer).
-  is_daily boolean not null default false,
-  default_is_fixed boolean not null default false,
-  -- null: no age restriction. Set: only members at or above this age are
-  -- eligible for this task in the assignment lottery.
-  min_age smallint check (min_age is null or min_age >= 0),
-  -- null: this task's days are independent of every other task's. Set:
-  -- every task sharing this same value always lands on the same days per
-  -- period (e.g. washing and hanging laundry to dry on the same days).
-  -- Tasks in the same group must share the same times_per_week.
-  day_group text,
-  -- Only meaningful when is_daily = false: how many distinct days a week
-  -- this task gets assigned, out of 7 (e.g. once a week vs. every other
-  -- day). Null for daily tasks.
-  times_per_week smallint check (times_per_week is null or (times_per_week between 1 and 7)),
-  created_at timestamptz not null default now()
-  -- A fixed task must have at least one row in task_default_fixed_members
-  -- — enforced in application code (CRUD), not a DB constraint, since
-  -- Postgres can't check a join table's row count in a column check.
+  icon text not null default '📌',
+  effort text not null check (effort in ('ligera', 'media', 'alta')),
+  -- 'diario': every day of the week (`days` is ignored/empty).
+  -- 'dias': a fixed set of specific days every week.
+  -- 'semanal': exactly one day a week (days has exactly one entry).
+  freq text not null check (freq in ('diario', 'dias', 'semanal')),
+  -- 0 = Monday ... 6 = Sunday. Required and non-empty unless freq = 'diario'.
+  days smallint[] not null default '{}',
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  check (freq = 'diario' or array_length(days, 1) > 0)
 );
 
--- One or more members enabled for a task's default fixed assignment. At
--- sorteo time the winner among them is whoever currently holds the fewest
--- tasks (see lib/algorithm/assign.ts) — not a fixed single person anymore.
-create table task_default_fixed_members (
+-- Who is allowed to be assigned this task. Replaces the old min_age-based
+-- eligibility: the schedule generator's lottery pool for a task is exactly
+-- this set (see lib/algorithm/schedule.ts).
+create table task_eligible_members (
   task_id uuid not null references tasks(id) on delete cascade,
-  member_id uuid not null references members(id),
+  member_id uuid not null references members(id) on delete cascade,
   primary key (task_id, member_id)
 );
 
-create table periods (
-  id uuid primary key default gen_random_uuid(),
-  start_date date not null,
-  end_date date not null check (end_date >= start_date),
-  status text not null default 'draft' check (status in ('draft', 'assigned')),
-  -- Seed for the deterministic assignment algorithm. Regenerated on every
-  -- reroll so re-running the sorteo for the same period gives a different
-  -- (but still reproducible) result.
-  seed bigint not null default ((extract(epoch from clock_timestamp()) * 1000)::bigint),
-  created_at timestamptz not null default now()
+-- Two tasks that must never be held by the same member on the same day
+-- (e.g. washing and drying the same meal) — enforced by the schedule
+-- generator, not the DB.
+create table task_conflicts (
+  task_a_id uuid not null references tasks(id) on delete cascade,
+  task_b_id uuid not null references tasks(id) on delete cascade,
+  primary key (task_a_id, task_b_id),
+  check (task_a_id <> task_b_id)
 );
 
--- Editable-per-period snapshot of which tasks are fixed and to whom, reviewed
--- before running the assignment. Seeded from tasks.default_* when a period is
--- created, then can be overridden for that period only.
-create table period_task_settings (
-  id uuid primary key default gen_random_uuid(),
-  period_id uuid not null references periods(id) on delete cascade,
-  task_id uuid not null references tasks(id) on delete cascade,
-  is_fixed boolean not null,
-  unique (period_id, task_id)
-  -- A fixed setting must have at least one row in
-  -- period_task_setting_fixed_members — enforced in application code, same
-  -- reasoning as tasks.default_is_fixed above.
-);
-
--- One or more members enabled for this period's fixed assignment of a
--- task, seeded from task_default_fixed_members when the period is created
--- and editable for that period only.
-create table period_task_setting_fixed_members (
-  period_task_setting_id uuid not null references period_task_settings(id) on delete cascade,
-  member_id uuid not null references members(id),
-  primary key (period_task_setting_id, member_id)
-);
-
--- Final assignment result for a period: who does each task.
--- day_of_week is only set for non-daily tasks (0 = Monday ... 6 = Sunday);
--- daily tasks apply to every day of the period and leave it null. A
--- non-daily task now gets 3 rows (one per assigned day), all sharing the
--- same task_id/member_id — hence the unique constraint includes
--- day_of_week rather than being per (period_id, task_id) alone.
+-- The current week's schedule: one row per (task, day). Regenerating the
+-- week ("Repartir nuestra semana") replaces every row. A daily task simply
+-- gets one row per day, all sharing the same task_id — there is no
+-- separate per-day completion table anymore, since every row is already
+-- day-specific.
 create table assignments (
   id uuid primary key default gen_random_uuid(),
-  period_id uuid not null references periods(id) on delete cascade,
   task_id uuid not null references tasks(id) on delete cascade,
-  member_id uuid not null references members(id),
-  day_of_week smallint check (day_of_week between 0 and 6),
-  is_fixed boolean not null default false,
-  created_at timestamptz not null default now(),
-  unique (period_id, task_id, day_of_week)
-);
-
--- Per-day completion tracking, kept separate from `assignments` because a
--- daily task has a single row spanning all 7 days: a `completed` column on
--- that row could only track one shared state for the whole week, not
--- independently per day. Keying by day here (looked up by the day being
--- rendered, not by assignments.day_of_week, which is null for daily tasks)
--- also means this never touches assignments' row-counting semantics, which
--- getHistoricalTaskCount relies on for cross-period balance.
-create table assignment_completions (
-  id uuid primary key default gen_random_uuid(),
-  assignment_id uuid not null references assignments(id) on delete cascade,
+  -- Null when no eligible member was available at generation time
+  -- (status = 'sin-responsable').
+  member_id uuid references members(id),
   day_of_week smallint not null check (day_of_week between 0 and 6),
-  completed boolean not null default false,
-  updated_at timestamptz not null default now(),
-  unique (assignment_id, day_of_week)
+  status text not null default 'pending' check (status in ('pending', 'completed', 'sin-responsable')),
+  created_at timestamptz not null default now(),
+  unique (task_id, day_of_week)
 );
 
-create index assignments_period_id_idx on assignments(period_id);
+create index task_eligible_members_member_id_idx on task_eligible_members(member_id);
+create index task_conflicts_task_b_id_idx on task_conflicts(task_b_id);
 create index assignments_member_id_idx on assignments(member_id);
-create index period_task_settings_period_id_idx on period_task_settings(period_id);
-create index task_default_fixed_members_member_id_idx on task_default_fixed_members(member_id);
-create index period_task_setting_fixed_members_member_id_idx on period_task_setting_fixed_members(member_id);
-create index assignment_completions_assignment_id_idx on assignment_completions(assignment_id);
 
+alter table household enable row level security;
 alter table members enable row level security;
 alter table tasks enable row level security;
-alter table task_default_fixed_members enable row level security;
-alter table periods enable row level security;
-alter table period_task_settings enable row level security;
-alter table period_task_setting_fixed_members enable row level security;
+alter table task_eligible_members enable row level security;
+alter table task_conflicts enable row level security;
 alter table assignments enable row level security;
-alter table assignment_completions enable row level security;

@@ -13,12 +13,12 @@ export function mapDbError(
       return `Ya existe un/a ${entity} con ese nombre.`;
     case "23503":
       return entity === "integrante"
-        ? "No se puede eliminar: sigue asignado/a como responsable fijo de una tarea. Reasígnala primero."
+        ? "No se puede eliminar: sigue habilitado/a para alguna tarea. Quítalo de esa tarea primero."
         : "No se puede eliminar: esta tarea sigue referenciada en otro registro.";
     case "23514":
       return entity === "integrante"
-        ? "La edad debe ser un número mayor o igual a 0."
-        : "Si la tarea es fija, debe tener un integrante responsable asignado.";
+        ? "El nombre no puede quedar vacío."
+        : "La tarea debe tener al menos un día si no es diaria.";
     default:
       return `Ocurrió un error guardando el/la ${entity}. Intenta de nuevo.`;
   }
