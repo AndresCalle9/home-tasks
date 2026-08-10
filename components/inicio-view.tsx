@@ -49,17 +49,23 @@ export function InicioView({
         </p>
       </div>
 
-      <div className="-mx-5 flex gap-2 overflow-x-auto px-5">
-        {members.map((m) => (
-          <Pill
-            key={m.id}
-            active={currentMemberId === m.id}
-            color={m.color}
-            onClick={() => setCurrentMemberId(m.id)}
-          >
-            {m.name}
-          </Pill>
-        ))}
+      <div>
+        <div className="text-sm font-bold">¿Quién eres hoy?</div>
+        <p className="mt-0.5 mb-2 text-xs text-muted-foreground">
+          Se recuerda en este dispositivo — define tu misión de hoy y qué tareas puedes retar.
+        </p>
+        <div className="-mx-5 flex gap-2 overflow-x-auto px-5">
+          {members.map((m) => (
+            <Pill
+              key={m.id}
+              active={currentMemberId === m.id}
+              color={m.color}
+              onClick={() => setCurrentMemberId(m.id)}
+            >
+              {m.name}
+            </Pill>
+          ))}
+        </div>
       </div>
 
       <div className="rounded-2xl bg-card p-4 shadow-xs ring-1 ring-foreground/10">
