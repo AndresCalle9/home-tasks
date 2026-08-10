@@ -1,22 +1,15 @@
 import { Badge } from "@/components/ui/badge";
 import { personColorVarByIndex } from "@/lib/person-color";
-import { TaskMemberSelect } from "@/components/task-member-select";
-import { TaskDaySelect } from "@/components/task-day-select";
 import { TaskCompletionCheckbox } from "@/components/task-completion-checkbox";
 import type { PersonGroup } from "@/lib/calendar-schedule";
-import type { Member } from "@/lib/data/members";
 
 export function PersonTaskGroup({
   group,
   memberIndex,
-  members,
-  periodId,
   dayOfWeek,
 }: {
   group: PersonGroup;
   memberIndex: number;
-  members: Member[];
-  periodId: string;
   dayOfWeek: number;
 }) {
   const color = personColorVarByIndex(memberIndex);
@@ -45,26 +38,10 @@ export function PersonTaskGroup({
               completed={completed}
             />
             <span className="text-sm leading-snug">{task.name}</span>
-            {isFixed ? (
+            {isFixed && (
               <Badge variant="outline" className="shrink-0 text-[10px]">
                 Fija
               </Badge>
-            ) : (
-              <TaskMemberSelect
-                periodId={periodId}
-                taskId={task.id}
-                currentMemberId={group.member.id}
-                eligibleMembers={members.filter(
-                  (m) => task.minAge == null || m.age >= task.minAge
-                )}
-              />
-            )}
-            {task.timesPerWeek === 1 && task.dayGroup == null && (
-              <TaskDaySelect
-                periodId={periodId}
-                taskId={task.id}
-                currentDayOfWeek={dayOfWeek}
-              />
             )}
           </li>
         ))}
