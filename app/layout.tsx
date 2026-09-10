@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { ToastProvider } from "@/components/toast-provider";
 import "./globals.css";
 
@@ -12,6 +13,15 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "Nest",
   description: "Reparte las tareas del hogar entre todos, semana a semana.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Nest",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#faf9f6",
 };
 
 // Truly shared across every route, signed in or not: the "(app)" route
@@ -25,6 +35,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${plusJakartaSans.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-background">
+        <ServiceWorkerRegistration />
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

@@ -87,7 +87,7 @@ automática/programada, tareas fijas/variables, ponderación por edad.
   cuentas por integrante: un solo login por hogar, y adentro cada
   integrante elige su perfil (selector estilo Netflix, recordado en el
   dispositivo, sin password) — eso no cambió.
-- Toda página salvo `/login` y `/signup` requiere sesión (`middleware.ts`
+- Toda página salvo `/login` y `/signup` requiere sesión (`proxy.ts`
   redirige si no hay una). `lib/auth/session.ts`'s `getCurrentHousehold()`
   resuelve el hogar de la sesión una vez por request (`React.cache`) y su
   `id` se pasa explícitamente a cada función de `lib/data/*.ts` — nunca
@@ -133,7 +133,7 @@ automática/programada, tareas fijas/variables, ponderación por edad.
   mantenimiento/migración ejecutados a mano — ningún código de la app en el
   camino de una request la importa (ignora RLS por completo). El anon key
   (`SUPABASE_ANON_KEY`) es el que usa la app en cada request, siempre
-  server-side (Server Actions, `middleware.ts`, `lib/auth/session.ts`,
+  server-side (Server Actions, `proxy.ts`, `lib/auth/session.ts`,
   `lib/data/*.ts`), nunca desde un componente `"use client"`. Ninguna de
   las dos debe:
   - exponerse al cliente,
