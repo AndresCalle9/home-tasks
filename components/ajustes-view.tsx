@@ -1,17 +1,22 @@
 "use client";
 
-import { useOptimistic, useState, useTransition } from "react";
+import { useActionState, useOptimistic, useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { PasswordConfirmDialog } from "@/components/password-confirm-dialog";
 import { TaskEditSheet } from "@/components/task-edit-sheet";
 import {
+  changeActionPasswordAction,
   generateWeekAction,
   resetWeekAction,
   setTaskActiveAction,
   updateHouseholdNameAction,
+  type ActionState,
 } from "@/app/ajustes/actions";
+import { signOutAction } from "@/app/(auth)/actions";
 import { DAY_ABBR, DAY_NAMES } from "@/lib/days";
 import { EFFORT_LABEL } from "@/lib/effort";
 import { cn } from "@/lib/utils";
@@ -82,6 +87,58 @@ function HouseholdNameField({ initialName }: { initialName: string }) {
   );
 }
 
+function ChangeActionPasswordForm() {
+  const [open, setOpen] = useState(false);
+  const [state, formAction, isPending] = useActionState<ActionState, FormData>(
+    changeActionPasswordAction,
+    {}
+  );
+  const [prevState, setPrevState] = useState(state);
+  if (state !== prevState) {
+    setPrevState(state);
+    if (!state.error) setOpen(false);
+  }
+
+  if (!open) {
+    return (
+      <Button variant="secondary" onClick={() => setOpen(true)}>
+        Cambiar clave de acciones
+      </Button>
+    );
+  }
+
+  return (
+    <form
+      action={formAction}
+      className="flex flex-col gap-3 rounded-2xl bg-card p-3.5 shadow-xs ring-1 ring-foreground/10"
+    >
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="ajustes-current-action-password">Clave actual</Label>
+        <Input
+          id="ajustes-current-action-password"
+          name="currentPassword"
+          type="password"
+          autoFocus
+          required
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="ajustes-new-action-password">Clave nueva</Label>
+        <Input id="ajustes-new-action-password" name="newPassword" type="password" required />
+      </div>
+      {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+      <div className="flex gap-2">
+        <Button type="button" variant="ghost" className="bg-card" onClick={() => setOpen(false)}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Guardando…" : "Guardar"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 export function AjustesView({
   householdName,
   tasks,
@@ -149,6 +206,18 @@ export function AjustesView({
           title="Reiniciar semana"
           description="Vuelve a marcar todas las tareas de esta semana como pendientes, sin cambiar quién hace qué."
         />
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <div className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
+          Cuenta
+        </div>
+        <ChangeActionPasswordForm />
+        <form action={signOutAction}>
+          <Button type="submit" variant="ghost" className="w-full">
+            Cerrar sesión
+          </Button>
+        </form>
       </section>
 
       {generating && (

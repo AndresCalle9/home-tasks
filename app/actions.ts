@@ -1,13 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getCurrentHousehold } from "@/lib/auth/session";
 import {
   reassignMember,
   setCompletion,
   swapAssignmentMembers,
 } from "@/lib/data/assignments";
 import { listTasks } from "@/lib/data/tasks";
-import { verifySecurityPassword } from "@/lib/security/password";
+import { verifyHouseholdActionPassword } from "@/lib/data/household";
 
 export type ActionState = { error?: string; ok?: true };
 
@@ -19,7 +20,8 @@ export async function toggleCompleteAction(
   const completed = formData.get("completed") === "true";
   if (!assignmentId) return { error: "Falta el identificador de la tarea." };
 
-  const result = await setCompletion(assignmentId, completed);
+  const { id: householdId } = await getCurrentHousehold();
+  const result = await setCompletion(householdId, assignmentId, completed);
   if ("error" in result) return result;
 
   revalidatePath("/");
@@ -38,18 +40,20 @@ export async function reassignMemberAction(
     return { error: "Faltan datos para reasignar la tarea." };
   }
 
+  const { id: householdId } = await getCurrentHousehold();
+
   const password = String(formData.get("password") ?? "");
-  if (!verifySecurityPassword(password)) {
+  if (!(await verifyHouseholdActionPassword(householdId, password))) {
     return { error: "Clave incorrecta." };
   }
 
-  const tasks = await listTasks();
+  const tasks = await listTasks(householdId);
   const task = tasks.find((t) => t.id === taskId);
   if (!task || !task.eligibleMemberIds.includes(memberId)) {
     return { error: "Ese integrante no puede hacer esta tarea." };
   }
 
-  const result = await reassignMember(assignmentId, memberId);
+  const result = await reassignMember(householdId, assignmentId, memberId);
   if ("error" in result) return result;
 
   revalidatePath("/");
@@ -69,7 +73,9 @@ export async function resolveDuelAction(
     return { error: "Faltan datos para el intercambio." };
   }
 
+  const { id: householdId } = await getCurrentHousehold();
   const result = await swapAssignmentMembers(
+    householdId,
     assignmentAId,
     memberAId,
     assignmentBId,

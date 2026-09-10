@@ -6,9 +6,7 @@ Defines the two read/interact surfaces built on top of the current week's
 and the "Semana" tab (the full Monday-to-Sunday calendar, by day or by
 person). Both share the same task detail sheet, completion toggle, and
 duel-swap entry point.
-
 ## Requirements
-
 ### Requirement: Choose a Current Profile on Inicio
 The system SHALL let a user pick, on the "Inicio" tab, which household
 member they currently are, from a horizontally scrollable list of pills.
@@ -96,27 +94,31 @@ allowed to do it.
 
 #### Scenario: Completing requires no password
 - **WHEN** a user toggles an assignment's completion
-- **THEN** the system SHALL NOT prompt for `SECURITY_PASSWORD`
+- **THEN** the system SHALL NOT prompt for the household's action password
 
 ### Requirement: Reassign an Assignment from Its Detail Sheet
-The system SHALL let a user change an assignment's responsible member from
-its detail sheet, offering only members eligible for that task other than
-the current one, gated behind the shared security password entered inline.
+The system SHALL let a signed-in household change one of their own
+assignment's responsible member from its detail sheet, offering only
+members of that same household eligible for that task other than the
+current one, gated behind that household's own action password (stored
+hashed in `household.action_password_hash`) entered inline.
 
 #### Scenario: Reassigning with the correct password
-- **WHEN** a user picks a different eligible member and enters the correct
-  password in the detail sheet's reassignment step
+- **WHEN** a signed-in household picks a different eligible member (from
+  their own household) and enters their own correct action password in the
+  detail sheet's reassignment step
 - **THEN** the system SHALL update that assignment's member and close the
   sheet
 
 #### Scenario: Wrong or missing password
-- **WHEN** a user enters an incorrect or empty password
+- **WHEN** a signed-in household enters an incorrect or empty action
+  password
 - **THEN** the system SHALL NOT change the assignment and SHALL show an
   inline error, keeping the sheet open
 
 #### Scenario: No reassignment control when there are no other eligible members
-- **WHEN** an assignment's task has no other eligible member besides the
-  current one
+- **WHEN** an assignment's task has no other eligible member, within the
+  same household, besides the current one
 - **THEN** the system SHALL NOT show the "Cambiar responsable" option
 
 ### Requirement: Start a Duel to Swap Two Assignments
@@ -147,3 +149,4 @@ password required.
 - **WHEN** the requester loses, or ties and declines a rematch
 - **THEN** the system SHALL close the duel overlay without changing either
   assignment
+

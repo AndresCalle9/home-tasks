@@ -1,12 +1,5 @@
-# week-assignment Specification
+## MODIFIED Requirements
 
-## Purpose
-Defines how the current week's task assignments are generated and changed:
-the manually-triggered sorteo that fills the `assignments` table, the
-password gate on outcome-changing actions, and the two ways a member can
-change a specific assignment afterward (direct reassignment, and the
-duel/swap mini-game).
-## Requirements
 ### Requirement: Trigger the Weekly Sorteo Manually
 The system SHALL let a signed-in household replace their own current
 week's assignments by pressing "Repartir nuestra semana" on the "Ajustes"
@@ -144,36 +137,3 @@ unchanged if the password is wrong or missing.
 - **THEN** the system SHALL only offer members belonging to that same
   household and listed in that task's `task_eligible_members`, excluding
   the current member
-
-### Requirement: Resolve a Duel by Swapping Two Assignments' Members
-The system SHALL let the member currently holding an assignment ("the
-requester") propose swapping it for another assignment held by someone
-else, restricted to assignments on the same day and with the same `effort`
-level as the requester's own task, and for which the requester is
-themselves eligible. The swap SHALL be resolved client-side via a
-rock-paper-scissors mini-game shared on one device; if the requester wins,
-the system SHALL swap the `member_id` of the two assignments. This action
-SHALL NOT require the shared security password.
-
-#### Scenario: Valid duel candidates
-- **WHEN** a user opens the duel flow for their own assignment
-- **THEN** the system SHALL only offer other members' assignments that
-  share the same `day_of_week`, share the same task `effort`, are not
-  `completed`, and belong to a task the requester is eligible for
-
-#### Scenario: Requester wins the duel
-- **WHEN** the rock-paper-scissors result favors the requester
-- **THEN** the system SHALL swap the `member_id` of the requester's
-  assignment and the challenged assignment, leaving both `status` values
-  and `day_of_week` values unchanged
-
-#### Scenario: Requester loses or ties and does not rematch
-- **WHEN** the requester loses the duel, or ties and chooses not to
-  rematch
-- **THEN** the system SHALL NOT change either assignment's `member_id`
-
-#### Scenario: Resolving a duel requires no password
-- **WHEN** a duel resolves in the requester's favor
-- **THEN** the system SHALL apply the swap without prompting for the
-  household's action password
-

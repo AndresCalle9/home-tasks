@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { updateHouseholdName } from "@/lib/data/household";
+import { getCurrentHousehold } from "@/lib/auth/session";
+import {
+  changeActionPassword,
+  updateHouseholdName,
+  verifyHouseholdActionPassword,
+} from "@/lib/data/household";
 import {
   createTask,
   deleteTask,
@@ -16,7 +21,6 @@ import { listMembers } from "@/lib/data/members";
 import { replaceWeek, resetWeekStatuses } from "@/lib/data/assignments";
 import { EFFORT_LEVELS } from "@/lib/effort";
 import { DAYS_OF_WEEK, generateSchedule } from "@/lib/algorithm/schedule";
-import { verifySecurityPassword } from "@/lib/security/password";
 
 export type ActionState = { error?: string; ok?: true };
 
@@ -27,7 +31,8 @@ export async function updateHouseholdNameAction(
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "El nombre no puede quedar vacío." };
 
-  const result = await updateHouseholdName(name);
+  const { id: householdId } = await getCurrentHousehold();
+  const result = await updateHouseholdName(householdId, name);
   if ("error" in result) return result;
   revalidatePath("/", "layout");
   return { ok: true };
@@ -79,7 +84,8 @@ export async function createTaskAction(
   const input = parseTaskInput(formData);
   if ("error" in input) return input;
 
-  const result = await createTask(input);
+  const { id: householdId } = await getCurrentHousehold();
+  const result = await createTask(householdId, input);
   if ("error" in result) return result;
   revalidatePath("/ajustes");
   return { ok: true };
@@ -94,7 +100,8 @@ export async function updateTaskAction(
   const input = parseTaskInput(formData);
   if ("error" in input) return input;
 
-  const result = await updateTask(id, input);
+  const { id: householdId } = await getCurrentHousehold();
+  const result = await updateTask(householdId, id, input);
   if ("error" in result) return result;
   revalidatePath("/ajustes");
   revalidatePath("/equipo");
@@ -108,7 +115,8 @@ export async function deleteTaskAction(
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Falta el identificador de la tarea." };
 
-  const result = await deleteTask(id);
+  const { id: householdId } = await getCurrentHousehold();
+  const result = await deleteTask(householdId, id);
   if ("error" in result) return result;
   revalidatePath("/ajustes");
   return { ok: true };
@@ -122,7 +130,8 @@ export async function setTaskActiveAction(
   const active = formData.get("active") === "true";
   if (!id) return { error: "Falta el identificador de la tarea." };
 
-  const result = await setTaskActive(id, active);
+  const { id: householdId } = await getCurrentHousehold();
+  const result = await setTaskActive(householdId, id, active);
   if ("error" in result) return result;
   revalidatePath("/ajustes");
   return { ok: true };
@@ -132,15 +141,17 @@ export async function generateWeekAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
+  const { id: householdId } = await getCurrentHousehold();
+
   const password = String(formData.get("password") ?? "");
-  if (!verifySecurityPassword(password)) {
+  if (!(await verifyHouseholdActionPassword(householdId, password))) {
     return { error: "Clave incorrecta." };
   }
 
   const [members, tasks, conflicts] = await Promise.all([
-    listMembers(),
-    listTasks(),
-    listTaskConflicts(),
+    listMembers(householdId),
+    listTasks(householdId),
+    listTaskConflicts(householdId),
   ]);
 
   const activeTasks = tasks.filter((t) => t.active);
@@ -158,6 +169,7 @@ export async function generateWeekAction(
   );
 
   const result = await replaceWeek(
+    householdId,
     results.map((r) => ({
       taskId: r.taskId,
       memberId: r.memberId,
@@ -176,15 +188,33 @@ export async function resetWeekAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
+  const { id: householdId } = await getCurrentHousehold();
+
   const password = String(formData.get("password") ?? "");
-  if (!verifySecurityPassword(password)) {
+  if (!(await verifyHouseholdActionPassword(householdId, password))) {
     return { error: "Clave incorrecta." };
   }
 
-  const result = await resetWeekStatuses();
+  const result = await resetWeekStatuses(householdId);
   if ("error" in result) return result;
 
   revalidatePath("/");
   revalidatePath("/semana");
+  return { ok: true };
+}
+
+export async function changeActionPasswordAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const currentPassword = String(formData.get("currentPassword") ?? "");
+  const newPassword = String(formData.get("newPassword") ?? "").trim();
+  if (!currentPassword || !newPassword) {
+    return { error: "Completa la clave actual y la nueva." };
+  }
+
+  const { id: householdId } = await getCurrentHousehold();
+  const result = await changeActionPassword(householdId, currentPassword, newPassword);
+  if ("error" in result) return result;
   return { ok: true };
 }

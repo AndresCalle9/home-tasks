@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getCurrentHousehold } from "@/lib/auth/session";
 import { createMember, deleteMember, renameMember } from "@/lib/data/members";
 import { toggleTaskEligibility } from "@/lib/data/tasks";
 
@@ -15,7 +16,8 @@ export async function createMemberAction(
   const color = String(formData.get("color") ?? "").trim();
   if (!color) return { error: "Elige un color." };
 
-  const result = await createMember(name, color);
+  const { id: householdId } = await getCurrentHousehold();
+  const result = await createMember(householdId, name, color);
   if ("error" in result) return result;
   revalidatePath("/equipo");
   return { ok: true };
@@ -30,7 +32,8 @@ export async function renameMemberAction(
   if (!id) return { error: "Falta el identificador del integrante." };
   if (!name) return { error: "El nombre es obligatorio." };
 
-  const result = await renameMember(id, name);
+  const { id: householdId } = await getCurrentHousehold();
+  const result = await renameMember(householdId, id, name);
   if ("error" in result) return result;
   revalidatePath("/equipo");
   return { ok: true };
@@ -43,7 +46,8 @@ export async function deleteMemberAction(
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Falta el identificador del integrante." };
 
-  const result = await deleteMember(id);
+  const { id: householdId } = await getCurrentHousehold();
+  const result = await deleteMember(householdId, id);
   if ("error" in result) return result;
   revalidatePath("/equipo");
   return { ok: true };
@@ -58,7 +62,8 @@ export async function toggleTaskEligibilityAction(
   const eligible = formData.get("eligible") === "true";
   if (!taskId || !memberId) return { error: "Faltan datos." };
 
-  const result = await toggleTaskEligibility(taskId, memberId, eligible);
+  const { id: householdId } = await getCurrentHousehold();
+  const result = await toggleTaskEligibility(householdId, taskId, memberId, eligible);
   if ("error" in result) return result;
   revalidatePath("/equipo");
   revalidatePath("/ajustes");

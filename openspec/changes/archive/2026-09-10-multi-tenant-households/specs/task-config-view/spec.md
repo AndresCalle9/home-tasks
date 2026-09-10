@@ -1,12 +1,5 @@
-# task-config-view Specification
+## MODIFIED Requirements
 
-## Purpose
-Defines the CRUD surfaces for the household's setup data: the "Equipo" tab
-(members and their per-task eligibility) and the "Ajustes" tab (household
-name and the task catalog). Neither surface requires the shared security
-password — it only gates actions that change the current week's assignment
-outcome (see `week-assignment`).
-## Requirements
 ### Requirement: Manage Members on Equipo
 The system SHALL display, on the "Equipo" tab, every real member of the
 signed-in household (from `members`, filtered by `household_id`) with
@@ -58,20 +51,6 @@ members belonging only to their own household.
 - **THEN** the system SHALL NOT delete the member
 - **THEN** the system SHALL show an inline error asking the user to remove
   them from those tasks first
-
-### Requirement: Edit a Member's Task Eligibility from Their Sheet
-The system SHALL let a user toggle, from a member's own sheet on "Equipo",
-which tasks that member is eligible to receive in the sorteo, writing
-directly to `task_eligible_members`.
-
-#### Scenario: Marking a member eligible for a task
-- **WHEN** a user checks a task in a member's sheet
-- **THEN** the system SHALL add a `task_eligible_members` row for that
-  (task, member) pair
-
-#### Scenario: Marking a member ineligible for a task
-- **WHEN** a user unchecks a previously-checked task in a member's sheet
-- **THEN** the system SHALL remove that (task, member) row
 
 ### Requirement: Manage the Household Name on Ajustes
 The system SHALL let a signed-in household view and edit their own
@@ -154,4 +133,3 @@ household's members).
 - **THEN** the system SHALL delete the task, cascading its
   `task_eligible_members` and `task_conflicts` rows, and remove it from
   the list
-

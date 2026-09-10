@@ -3,23 +3,31 @@ schema: spec-driven
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 context: |
-  Producto: "Home Tasks" - app web para repartir las tareas del hogar entre los
-  integrantes de una sola familia (no multi-tenant, no hay concepto de cuentas
-  separadas por hogar).
+  Producto: "Home Tasks" - app web multi-tenant para repartir las tareas del
+  hogar entre los integrantes de una familia. Cualquier persona puede crear
+  su propia cuenta/hogar (Supabase Auth, correo + contraseña); cada hogar
+  ve y opera solo sobre sus propios datos. Sigue sin haber cuentas por
+  integrante dentro de un hogar: un solo login por hogar, y adentro cada
+  integrante elige su perfil (selector estilo Netflix), sin contraseñas
+  para eso.
 
-  Nota histórica: una versión anterior del producto giraba en torno a
-  "periodos" (fecha inicio/fin, tareas fijas/variables, ponderación por edad,
-  balance histórico entre periodos). La reescritura "app v2" reemplazó ese
-  modelo por el descrito abajo: solo existe "la semana vigente", sin periodos
-  ni historial. Cambios propuestos a partir de ahora deben partir de este
-  modelo, no del anterior.
+  Notas históricas:
+  - Una versión anterior giraba en torno a "periodos" (fecha inicio/fin,
+    tareas fijas/variables, ponderación por edad, balance histórico entre
+    periodos). La reescritura "app v2" reemplazó ese modelo por el descrito
+    abajo: solo existe "la semana vigente", sin periodos ni historial.
+  - Hasta el change `multi-tenant-households`, la app era de un solo hogar
+    sin cuentas. Cambios propuestos a partir de ahora deben partir del
+    modelo multi-tenant descrito abajo, no del anterior.
 
   Funciones principales:
   1. Reparto de la semana vigente (disparado manualmente desde "Ajustes" con
-     el botón "Repartir nuestra semana", NO automático/cron, protegido por la
-     clave compartida `SECURITY_PASSWORD`): el sorteo reemplaza por completo
-     la tabla `assignments` — no hay concepto de periodo ni historial de
-     semanas pasadas. Reglas de negocio del sorteo:
+     el botón "Repartir nuestra semana", NO automático/cron, protegido por
+     la clave de acciones **del hogar que la dispara** — hasheada en
+     `household.action_password_hash`, ya no una variable de entorno
+     compartida por todo el despliegue): el sorteo reemplaza por completo
+     las filas de `assignments` de ese hogar — no hay concepto de periodo
+     ni historial de semanas pasadas. Reglas de negocio del sorteo:
      - Para cada día de la semana y cada tarea activa que aplique ese día, se
        elige al azar entre los integrantes elegibles para esa tarea
        (`task_eligible_members`) al que tenga menor carga acumulada en lo que
@@ -53,27 +61,32 @@ context: |
      esfuerzo, frecuencia y días, integrantes elegibles) y el nombre del
      hogar.
 
-  Modelo de dominio (un solo hogar, sin autenticación por cuentas; ver
-  supabase/schema.sql para el detalle):
-  - household: fila única con el nombre del hogar.
-  - members: integrantes del hogar (nombre, color). Sin edad.
-  - tasks: catálogo de tareas del hogar (nombre, icono, esfuerzo, frecuencia,
-    días, activa/inactiva).
-  - task_eligible_members: qué integrantes pueden recibir cada tarea en el
-    sorteo.
-  - task_conflicts: pares de tareas que nunca deben caer el mismo día en el
-    mismo integrante.
-  - assignments: la semana vigente — una fila por (tarea, día) con el
-    integrante responsable y su estado (pending/completed/sin-responsable).
-    No hay historial: repartir la semana reemplaza toda la tabla.
-  No hay login: se entra directo a la app y cada integrante simplemente elige su
-  perfil (como un selector de perfil estilo Netflix), sin contraseñas.
+  Modelo de dominio (multi-tenant por household_id; ver supabase/schema.sql
+  para el detalle de columnas y policies de RLS):
+  - household: un hogar/cuenta — id (uuid), user_id (1:1 con auth.users),
+    name, action_password_hash (hasheada).
+  - members: integrantes de un hogar (household_id, nombre, color). Sin edad.
+  - tasks: catálogo de tareas de un hogar (household_id, nombre, icono,
+    esfuerzo, frecuencia, días, activa/inactiva). Nombre único por hogar,
+    no globalmente.
+  - task_eligible_members: qué integrantes de un hogar pueden recibir cada
+    tarea en el sorteo (carga household_id directamente).
+  - task_conflicts: pares de tareas de un hogar que nunca deben caer el
+    mismo día en el mismo integrante (carga household_id directamente).
+  - assignments: la semana vigente de un hogar — una fila por (tarea, día)
+    con el integrante responsable y su estado
+    (pending/completed/sin-responsable). No hay historial: repartir la
+    semana reemplaza las filas de ese hogar.
 
   Seguridad: nunca hardcodear secretos/keys en el código; toda credencial vive
-  en variables de entorno server-side. La Supabase service role key (server-side
-  únicamente) nunca se expone al cliente ni se marca como NEXT_PUBLIC_. RLS
-  habilitado en todas las tablas; el cliente nunca habla directo con Supabase,
-  siempre a través de la capa de API de Next.js.
+  en variables de entorno server-side. La Supabase service role key es solo
+  para scripts de mantenimiento a mano (nunca en el camino de una request);
+  la app usa el anon key, siempre server-side (Server Actions/middleware),
+  nunca en un componente "use client" ni con prefijo NEXT_PUBLIC_. RLS
+  habilitado en todas las tablas **con policies reales basadas en
+  auth.uid()** — es la barrera de aislamiento multi-tenant, no un
+  formalismo; el cliente nunca habla directo con Supabase, siempre a través
+  de la capa de Next.js.
 
   Stack técnico:
   - Next.js (App Router) desplegado en Vercel.
@@ -88,8 +101,9 @@ context: |
   - Al implementar o revisar componentes de React/Next.js, seguir el skill
     `vercel-react-best-practices` (patrones de rendimiento de Vercel Engineering).
 
-  Fuera de alcance por ahora: multi-hogar, autenticación con contraseña,
-  notificaciones push, apps móviles nativas.
+  Fuera de alcance por ahora: múltiples cuentas/perfiles con permisos
+  distintos dentro de un mismo hogar, invitar a otra persona a un hogar
+  existente, planes de pago, notificaciones push, apps móviles nativas.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
