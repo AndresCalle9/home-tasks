@@ -1,63 +1,79 @@
 # Home Tasks
 
 App web para repartir las tareas del hogar entre los integrantes de una sola
-familia: asignación de tareas por periodo (bajo demanda, no automática) y un
-calendario visual de lunes a domingo.
+familia: reparto de la semana vigente bajo demanda (no automático), con un
+calendario lunes-domingo, vista de equipo, y ajustes de tareas/hogar.
+
+> Nota histórica: una versión anterior del producto giraba en torno a
+> "periodos" (fecha inicio/fin, tareas fijas/variables, ponderación por
+> edad, balance histórico entre periodos). La reescritura "app v2"
+> (`7feaa65`) reemplazó ese modelo por el descrito abajo: no hay periodos,
+> historial de semanas pasadas, distinción fija/variable, ni edad de los
+> integrantes. Ver `BACKLOG.md` para el detalle de esa transición.
 
 ## Alcance del producto
 
-1. **Asignación de tareas por periodo**
-   - El disparo es **manual**: no hay cron ni asignación automática semanal.
-     Un integrante presiona un botón "Asignar tareas", define el periodo
-     (fecha inicio/fin) y solo entonces se ejecuta la asignación.
-   - Antes de asignar, el flujo debe mostrar la lista completa de tareas para
-     ese periodo con su estado **fija/variable** editable (pre-cargado desde
-     el valor por defecto de cada tarea, pero modificable para ese periodo
-     puntual — ej. reasignar temporalmente a quién le toca una tarea fija).
-   - **Tareas fijas**: se definen uno o más integrantes habilitados (para ese
-     periodo); a la hora del sorteo, le toca a quien de esos habilitados
-     tenga menos carga acumulada en ese momento (empate se rompe al azar).
-     Nunca entran al sorteo general de variables ni afectan el balance
-     histórico entre periodos, pero sí cuentan hacia la carga inicial de
-     quien la gane al balancear las tareas variables de ese mismo periodo
-     (para que quien ya tiene varias fijas no termine además con la mayor
-     carga variable).
-   - **Tareas variables**: se reparten de forma aleatoria pero ponderada por
-     edad (adultos > menores) y por la carga acumulada en periodos anteriores
-     (quien ha tenido menos carga tiene más probabilidad de recibir tareas).
-   - Cada tarea variable recibe **una sola persona asignada para todo el
-     periodo** (p.ej. quien cocina el desayuno lo hace todos los días del
-     periodo; no hay rotación día a día dentro de un mismo periodo).
-   - Las tareas "puntuales" (barrer, trapear, lavar ropa, etc., en
-     contraste con las diarias) tienen una **frecuencia configurable por
-     tarea** (veces por semana, de 1 a 7; ej. lavar el baño 1 vez, sacar la
-     basura 3-4 veces) y reciben esa cantidad de **días específicos** del
-     periodo como parte del sorteo, para que el calendario quede completo.
-     Tareas relacionadas (ej. lavar y extender ropa) pueden agruparse para
-     que siempre caigan en los mismos días — deben compartir la misma
-     frecuencia. Una tarea con frecuencia de 1 vez por semana (y sin grupo
-     de día) puede además editarse manualmente desde el Calendario para
-     escoger a qué día cae, en vez del día que salió del sorteo.
-   - El algoritmo debe ser determinista dado un seed, para poder testearlo.
-2. **Calendario semanal**: vista lunes-domingo con la tarea y el responsable de
-   cada día, a partir del resultado de la asignación del periodo vigente.
-   Cada tarea de cada día tiene un checkbox de completado, independiente
-   por día (incluso para una tarea diaria, que solo tiene una asignación de
-   fondo pero se marca día por día), sin restricción de quién lo marca.
-3. **Gestión (CRUD)**: pestaña para crear, editar y eliminar tareas e
-   integrantes (nombre, edad, si la tarea es fija por defecto y de
-   quién/quiénes — una tarea fija puede tener uno o más responsables
-   habilitados).
+1. **Reparto de la semana vigente** (pestaña "Ajustes" → "🎲 Repartir
+   nuestra semana")
+   - El disparo es **manual**: no hay cron ni repartición automática. Un
+     integrante presiona el botón, confirma la clave compartida
+     (`SECURITY_PASSWORD`) y el sorteo reemplaza por completo la tabla
+     `assignments` vigente — no existe historial de semanas anteriores, solo
+     "la semana actual".
+   - El algoritmo (`lib/algorithm/schedule.ts`) es determinista dado un
+     seed (se genera uno aleatorio en cada corrida). Para cada día de la
+     semana y cada tarea activa que aplique ese día, elige entre los
+     integrantes elegibles para esa tarea (`task_eligible_members`) al que
+     tenga **menor carga acumulada** en lo que va de esa misma corrida
+     (ponderada por `effort`: ligera/media/alta), rompiendo empates al azar
+     vía el seed. Respeta `task_conflicts`: dos tareas que nunca deben caer
+     el mismo día en la misma persona.
+   - Cada tarea recibe **un solo responsable para todos los días en que
+     aplica esa semana** (p.ej. quien cocina el desayuno lo hace todos los
+     días que le tocan; no hay rotación día a día).
+   - "Reiniciar semana" (también protegido por la clave) vuelve a marcar
+     todas las asignaciones como pendientes sin re-sortear quién hace qué.
+2. **Frecuencia por tarea** (`tasks.freq`, configurable en Ajustes):
+   `diario` (todos los días), `dias` (un conjunto fijo de días específicos)
+   o `semanal` (exactamente un día). No hay agrupación de tareas por mismo
+   día ni frecuencia variable en "N veces por semana" editable por periodo —
+   el patrón de días de cada tarea es fijo hasta que se edite en Ajustes.
+3. **Calendario semanal** (pestaña "Semana"): vista lunes-domingo, con dos
+   modos — por día (quién hace qué ese día) y por persona (qué le toca a
+   cada quien cada día) — a partir de la tabla `assignments` vigente. Cada
+   fila (task, day) tiene un `status` (pending/completed/sin-responsable)
+   marcable desde la ficha de la tarea, sin restricción de quién lo marca
+   ni clave.
+4. **"Equipo"**: pestaña que lista los integrantes, cuántas tareas tiene
+   cada uno esta semana y para cuántas es elegible; una ficha por
+   integrante permite renombrarlo, marcar qué tareas puede hacer, o
+   eliminarlo (bloqueado si sigue habilitado para alguna tarea).
+5. **"Ajustes"**: nombre del hogar, catálogo de tareas (crear/editar/
+   activar-desactivar/eliminar: nombre, icono, esfuerzo, frecuencia, días,
+   integrantes elegibles), y los botones para repartir/reiniciar la semana.
+6. **Reasignación manual y "duelo"** (desde la ficha de una tarea en Inicio
+   o Semana):
+   - Cambiar responsable: elegir otro integrante elegible para esa tarea;
+     requiere la clave compartida.
+   - "Retar por intercambio" (duelo): solo para tu propia tarea de hoy;
+     ofrece intercambiarla por otra tarea del mismo día y mismo nivel de
+     esfuerzo que ya tenga otro integrante y para la que tú también seas
+     elegible; se resuelve con un mini-juego de piedra/papel/tijera en el
+     mismo dispositivo, y si gana quien reta, se intercambian los dos
+     responsables. Esta acción **no** requiere la clave compartida, a
+     diferencia de la reasignación directa.
 
 Fuera de alcance por ahora: multi-hogar, login con contraseña para entrar a
-la app, notificaciones push, apps nativas, asignación automática/programada.
-Un solo hogar, sin cuentas: se entra directo y cada integrante elige su
-perfil (selector estilo Netflix), sin passwords para eso. La única excepción
-es una clave compartida (`SECURITY_PASSWORD`, variable de entorno
-server-side) que protege específicamente las acciones que cambian el
-resultado de un periodo ya sorteado: correr o repetir el sorteo, y
-reasignar manualmente el responsable o el día de una tarea desde el
-Calendario. Marcar una tarea como completada no requiere esa clave.
+la app, notificaciones push, apps nativas, historial de semanas pasadas,
+asignación automática/programada, tareas fijas/variables, ponderación por
+edad. Un solo hogar, sin cuentas: se entra directo y cada integrante elige
+su perfil (selector estilo Netflix, recordado en el dispositivo), sin
+passwords para eso. La única excepción es la clave compartida
+(`SECURITY_PASSWORD`, variable de entorno server-side) que protege
+específicamente las acciones que cambian el resultado de la semana vigente:
+repartir o reiniciar la semana, y reasignar manualmente el responsable de
+una tarea. Marcar una tarea como completada, o resolver un duelo, no
+requiere esa clave.
 
 ## Stack técnico
 
@@ -104,19 +120,21 @@ Calendario. Marcar una tarea como completada no requiere esa clave.
 
 ## Modelo de dominio (referencia)
 
-- `members`: integrantes del hogar (nombre, edad).
-- `tasks`: catálogo de tareas (nombre, si es diaria, si es fija por defecto y
-  de quién/quiénes — vía `task_default_fixed_members` —, peso/dificultad
-  opcional).
-- `periods`: cada ciclo de asignación definido manualmente (fecha inicio/fin,
-  estado).
-- `period_task_settings`: snapshot editable, por periodo, de qué tareas son
-  fijas y de quién/quiénes — vía `period_task_setting_fixed_members` —
-  (parte del "antes de asignar").
-- `assignments`: resultado final de la asignación de un periodo — qué tarea le
-  tocó a quién (y qué día, para las tareas de una vez por periodo). También es
-  la fuente para calcular el balance de carga acumulado.
-- `assignment_completions`: si cada tarea asignada, por día, ya se hizo.
+- `household`: fila única (`id = 1`) con el nombre del hogar, editable desde
+  Ajustes.
+- `members`: integrantes del hogar (nombre, color de avatar/pill). Sin edad
+  ni autenticación.
+- `tasks`: catálogo de tareas (nombre, icono, `effort`: ligera/media/alta,
+  `freq`: diario/dias/semanal, `days` — días específicos cuando no es
+  diaria —, `active`).
+- `task_eligible_members`: qué integrantes pueden recibir cada tarea en el
+  sorteo; la lotería solo elige entre quienes estén aquí.
+- `task_conflicts`: pares de tareas que nunca deben caer el mismo día en el
+  mismo integrante (se respeta en el algoritmo, no en la base de datos).
+- `assignments`: la semana vigente — una fila por (task, day), con el
+  integrante responsable (o `null` si nadie fue elegible) y su `status`
+  (pending/completed/sin-responsable). "Repartir la semana" borra y
+  reinserta toda la tabla; no hay periodos ni historial de semanas pasadas.
 
 Ver `supabase/schema.sql` para el detalle de columnas y relaciones, y
 `supabase/seed.sql` para los datos iniciales de integrantes y tareas.

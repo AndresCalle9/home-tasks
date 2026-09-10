@@ -1,148 +1,133 @@
 # task-config-view Specification
 
 ## Purpose
-TBD - created by archiving change ui-shell-mockup. Update Purpose after archive.
+Defines the CRUD surfaces for the household's setup data: the "Equipo" tab
+(members and their per-task eligibility) and the "Ajustes" tab (household
+name and the task catalog). Neither surface requires the shared security
+password — it only gates actions that change the current week's assignment
+outcome (see `week-assignment`).
 
 ## Requirements
 
-### Requirement: Read-Only Members List
-The system SHALL display, on the "Configuración" tab, the household's real
-members (from the `members` table in Supabase) by name, and SHALL let a user
-create, edit, and delete members (`name`, `age`).
+### Requirement: Manage Members on Equipo
+The system SHALL display, on the "Equipo" tab, every real member (from
+`members`) with their name, how many assignments they hold this week, and
+for how many tasks they are eligible, and SHALL let a user create, rename,
+and delete members.
 
-#### Scenario: Viewing members in Configuración
-- **WHEN** a user opens the "Configuración" tab
-- **THEN** the system SHALL show each real member's name (age is not shown
-  in the list; it is only used as an input for the assignment algorithm)
+#### Scenario: Viewing members on Equipo
+- **WHEN** a user opens the "Equipo" tab
+- **THEN** the system SHALL show each member's name, current-week
+  assignment count, and eligible-task count
 
 #### Scenario: Creating a member
-- **WHEN** a user submits the "Nuevo integrante" form with a name and an age
-  of 0 or greater
-- **THEN** the system SHALL create the member in Supabase and show it in the
-  list without a manual page refresh
+- **WHEN** a user submits "Añadir integrante" with a name and a color
+- **THEN** the system SHALL create the member in `members` and show it in
+  the list without a manual page refresh
 
 #### Scenario: Creating a member with a duplicate name
 - **WHEN** a user submits a name that already belongs to another member
 - **THEN** the system SHALL NOT create a duplicate row
 - **THEN** the system SHALL show an inline error explaining the name is
-  already in use, without closing the form
+  already in use
 
-#### Scenario: Creating a member with an invalid age
-- **WHEN** a user submits a negative age or leaves the name empty
-- **THEN** the system SHALL reject the submission before or without
-  persisting it
-- **THEN** the system SHALL show an inline error identifying the invalid
-  field
+#### Scenario: Renaming a member
+- **WHEN** a user edits an existing member's name from their member sheet
+- **THEN** the system SHALL update that member's `name` and reflect it
+  everywhere it's displayed
 
-#### Scenario: Editing a member
-- **WHEN** a user edits an existing member's name or age and submits
-- **THEN** the system SHALL update that member's row in Supabase and reflect
-  the new values in the list
+#### Scenario: Deleting a member with no task eligibility
+- **WHEN** a user confirms deleting a member who is not marked eligible for
+  any task
+- **THEN** the system SHALL delete the member
 
-#### Scenario: Deleting a member with no references
-- **WHEN** a user confirms deleting a member who is not set as any task's
-  fixed responsible person
-- **THEN** the system SHALL delete the member and remove them from the list
-
-#### Scenario: Deleting a member who is a task's fixed responsible person
-- **WHEN** a user confirms deleting a member who is currently set as the
-  fixed responsible person for one or more tasks
+#### Scenario: Deleting a member who is still eligible for a task
+- **WHEN** a user confirms deleting a member who is still listed in
+  `task_eligible_members` for one or more tasks
 - **THEN** the system SHALL NOT delete the member
-- **THEN** the system SHALL show an inline error asking the user to
-  reassign those tasks first
+- **THEN** the system SHALL show an inline error asking the user to remove
+  them from those tasks first
 
-### Requirement: Read-Only Tasks List
-The system SHALL display, on the "Configuración" tab, the household's real
-tasks (from the `tasks` table in Supabase), and SHALL let a user create,
-edit, and delete tasks (`name`, `is_daily`, `default_is_fixed`,
-`default_fixed_member_id`, `min_age`, `day_group`, `times_per_week`).
+### Requirement: Edit a Member's Task Eligibility from Their Sheet
+The system SHALL let a user toggle, from a member's own sheet on "Equipo",
+which tasks that member is eligible to receive in the sorteo, writing
+directly to `task_eligible_members`.
 
-#### Scenario: Viewing tasks in Configuración
-- **WHEN** a user opens the "Configuración" tab
-- **THEN** the system SHALL show each real task's name, whether it is daily
-  or once-per-period, whether it is fixed (and to which member, if fixed),
-  its minimum age when one is set, its day group when one is set, and its
-  weekly frequency when the task is once-per-period
+#### Scenario: Marking a member eligible for a task
+- **WHEN** a user checks a task in a member's sheet
+- **THEN** the system SHALL add a `task_eligible_members` row for that
+  (task, member) pair
 
-#### Scenario: Creating a variable task
-- **WHEN** a user submits the "Nueva tarea" form with a name and marks it
-  as not fixed
-- **THEN** the system SHALL create the task in Supabase with
-  `default_is_fixed = false` and `default_fixed_member_id = null`, and show
-  it in the list without a manual page refresh
+#### Scenario: Marking a member ineligible for a task
+- **WHEN** a user unchecks a previously-checked task in a member's sheet
+- **THEN** the system SHALL remove that (task, member) row
 
-#### Scenario: Creating a fixed task without selecting a member
-- **WHEN** a user marks a task as fixed but does not select a responsible
-  member
-- **THEN** the system SHALL reject the submission
-- **THEN** the system SHALL show an inline error asking for the responsible
-  member
+### Requirement: Manage the Household Name on Ajustes
+The system SHALL let a user view and edit the household's display name
+(the single `household` row) from the "Ajustes" tab.
 
-#### Scenario: Creating a fixed task with a selected member
-- **WHEN** a user marks a task as fixed and selects an existing member
-- **THEN** the system SHALL create the task with `default_is_fixed = true`
-  and `default_fixed_member_id` set to that member
+#### Scenario: Editing the household name
+- **WHEN** a user edits the household name field and it loses focus with a
+  non-empty, changed value
+- **THEN** the system SHALL update `household.name` and reflect it
+  throughout the app (e.g. the "Inicio" greeting)
+
+#### Scenario: Leaving the household name unchanged or empty
+- **WHEN** a user leaves the field unchanged, or clears it and it loses
+  focus
+- **THEN** the system SHALL NOT persist an empty name and SHALL revert the
+  field to the last saved value
+
+### Requirement: Manage the Task Catalog on Ajustes
+The system SHALL display, on "Ajustes", every task (from `tasks`) with its
+icon, schedule (derived from `freq`/`days`), and effort level, and SHALL
+let a user create, edit, activate/deactivate, and delete tasks. A task's
+editable fields are its name, icon, `effort` (ligera/media/alta), `freq`
+(`diario`/`dias`/`semanal`) with its associated `days`, and its eligible
+members.
+
+#### Scenario: Viewing tasks on Ajustes
+- **WHEN** a user opens the "Ajustes" tab
+- **THEN** the system SHALL list every task with its icon, name, schedule
+  label, and effort level, visually dimmed when inactive
+
+#### Scenario: Creating a task
+- **WHEN** a user submits "Crear tarea" with a name, a valid effort, a
+  valid frequency (with at least one day unless `diario`), and at least one
+  eligible member
+- **THEN** the system SHALL create the task in `tasks` and its
+  `task_eligible_members` rows, and show it in the list without a manual
+  page refresh
 
 #### Scenario: Creating a task with a duplicate name
 - **WHEN** a user submits a name that already belongs to another task
 - **THEN** the system SHALL NOT create a duplicate row
 - **THEN** the system SHALL show an inline error explaining the name is
-  already in use, without closing the form
+  already in use
 
-#### Scenario: Setting a minimum age for a task
-- **WHEN** a user sets a minimum age while creating or editing a task
-- **THEN** the system SHALL save it as that task's `min_age`, to be
-  enforced the next time the assignment algorithm runs
+#### Scenario: A "dias" or "semanal" task requires at least one day
+- **WHEN** a user submits a task with `freq = "dias"` and no day selected,
+  or `freq = "semanal"` with a day count other than exactly one
+- **THEN** the system SHALL reject the submission and show an inline error
 
-#### Scenario: Leaving minimum age blank
-- **WHEN** a user leaves the minimum age field blank while creating or
-  editing a task
-- **THEN** the system SHALL save `min_age` as unset, meaning no age
-  restriction applies to that task
-
-#### Scenario: Setting a day group for a task
-- **WHEN** a user sets a day group while creating or editing a task
-- **THEN** the system SHALL save it as that task's `day_group`, so it
-  always receives the same days as any other task sharing that group the
-  next time the assignment algorithm runs
-
-#### Scenario: Leaving day group blank
-- **WHEN** a user leaves the day group field blank while creating or
-  editing a task
-- **THEN** the system SHALL save `day_group` as unset, meaning that task's
-  days are not tied to any other task's
-
-#### Scenario: Setting a weekly frequency for a once-per-period task
-- **WHEN** a user sets a value from 1 to 7 for a task marked as not daily
-- **THEN** the system SHALL save it as that task's `times_per_week`, to be
-  used as the number of days assigned the next time the assignment
-  algorithm runs
-
-#### Scenario: A once-per-period task requires a weekly frequency
-- **WHEN** a user submits a task marked as not daily without a valid
-  `times_per_week` between 1 and 7
-- **THEN** the system SHALL reject the submission
-- **THEN** the system SHALL show an inline error asking for a valid weekly
-  frequency
-
-#### Scenario: A daily task has no weekly frequency
-- **WHEN** a user marks a task as daily
-- **THEN** the system SHALL save `times_per_week` as unset for that task,
-  regardless of any previously entered value
-
-#### Scenario: Weekly frequency must match the rest of its day group
-- **WHEN** a user sets a `day_group` on a task and that group already has
-  another task with a different `times_per_week`
-- **THEN** the system SHALL reject the submission
-- **THEN** the system SHALL show an inline error naming the mismatched
-  frequency
+#### Scenario: A task requires at least one eligible member
+- **WHEN** a user submits a task with no member marked eligible
+- **THEN** the system SHALL reject the submission and show an inline error
 
 #### Scenario: Editing a task
-- **WHEN** a user edits an existing task's name, `is_daily`, `min_age`,
-  `day_group`, `times_per_week`, or fixed status/member and submits
-- **THEN** the system SHALL update that task's row in Supabase and reflect
-  the new values in the list
+- **WHEN** a user edits an existing task's name, icon, effort, frequency,
+  days, or eligible members and submits
+- **THEN** the system SHALL update the task's row and its
+  `task_eligible_members` set to match
+
+#### Scenario: Activating or deactivating a task
+- **WHEN** a user toggles a task's active switch
+- **THEN** the system SHALL update its `active` flag; an inactive task
+  SHALL be excluded from the next sorteo but SHALL remain visible (dimmed)
+  in the catalog
 
 #### Scenario: Deleting a task
 - **WHEN** a user confirms deleting a task
-- **THEN** the system SHALL delete the task and remove it from the list
+- **THEN** the system SHALL delete the task, cascading its
+  `task_eligible_members` and `task_conflicts` rows, and remove it from the
+  list

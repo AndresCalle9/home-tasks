@@ -1,3 +1,15 @@
+> **OBSOLETE (archived 2026-09-10):** every task in `tasks.md` was checked
+> off, but the codebase's own history shows this change's target schema
+> (`periods`, `period_task_settings`, single/multi `fixed_member_id`,
+> `min_age`, `day_group`, `times_per_week`) was never merged, or was later
+> discarded — the shipped `supabase/schema.sql` ("v2 — visual redesign")
+> has no `periods` concept at all: assignments are for a single current
+> week, regenerated wholesale, with no fixed/variable distinction or age
+> weighting. Archived without syncing its delta specs (`--skip-specs`)
+> since they describe a data model that doesn't exist; see the rewritten
+> `openspec/specs/week-assignment`, `openspec/specs/calendar-view`, and
+> `openspec/specs/task-config-view` for the current behavior instead.
+
 ## Why
 
 Real usage of the current period-assignment and calendar flows surfaced four

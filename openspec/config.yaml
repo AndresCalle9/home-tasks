@@ -7,49 +7,65 @@ context: |
   integrantes de una sola familia (no multi-tenant, no hay concepto de cuentas
   separadas por hogar).
 
+  Nota histórica: una versión anterior del producto giraba en torno a
+  "periodos" (fecha inicio/fin, tareas fijas/variables, ponderación por edad,
+  balance histórico entre periodos). La reescritura "app v2" reemplazó ese
+  modelo por el descrito abajo: solo existe "la semana vigente", sin periodos
+  ni historial. Cambios propuestos a partir de ahora deben partir de este
+  modelo, no del anterior.
+
   Funciones principales:
-  1. Asignación de tareas por periodo (disparada manualmente, NO automática/cron):
-     un integrante presiona un botón "Asignar tareas", define el periodo (fecha
-     inicio/fin) y ANTES de ejecutar el sorteo puede revisar/editar, para ese
-     periodo puntual, qué tareas son "fijas" (y de quién) y cuáles quedan como
-     "variables" (esto parte de un valor por defecto por tarea, pero es editable
-     periodo a periodo). Reglas de negocio del sorteo:
-     - Tareas "fijas" (para ese periodo): siempre las hace la misma persona. Estas
-       tareas NO entran al sorteo aleatorio y no cuentan en el balance de carga
-       del resto de tareas.
-     - Tareas "variables": se reparten en cada periodo de forma aleatoria pero
-       ponderada por edad (adultos asumen más carga que niños/adolescentes) y
-       buscando balancear la carga acumulada en el tiempo (quien recibió menos
-       carga en periodos anteriores tiene más probabilidad de recibir tareas).
-     - Cada tarea variable recibe una única persona asignada para TODO el periodo
-       (ej. quien cocina el desayuno lo hace todos los días de ese periodo; no hay
-       rotación día a día dentro del mismo periodo).
-     - Las tareas "de una vez por periodo" (barrer, trapear, ruta del popo,
-       organizar zonas comunes, etc., en contraste con tareas diarias como
-       cocinar) también reciben, como parte del sorteo, un día específico dentro
-       del periodo para poder ubicarlas en el calendario.
+  1. Reparto de la semana vigente (disparado manualmente desde "Ajustes" con
+     el botón "Repartir nuestra semana", NO automático/cron, protegido por la
+     clave compartida `SECURITY_PASSWORD`): el sorteo reemplaza por completo
+     la tabla `assignments` — no hay concepto de periodo ni historial de
+     semanas pasadas. Reglas de negocio del sorteo:
+     - Para cada día de la semana y cada tarea activa que aplique ese día, se
+       elige al azar entre los integrantes elegibles para esa tarea
+       (`task_eligible_members`) al que tenga menor carga acumulada en lo que
+       va de esa misma corrida (ponderada por el `effort` de la tarea:
+       ligera/media/alta), rompiendo empates al azar vía un seed. No hay
+       distinción entre tareas fijas/variables ni ponderación por edad (los
+       integrantes no tienen edad en el modelo actual).
+     - `task_conflicts` marca pares de tareas que nunca deben caer el mismo
+       día en el mismo integrante; se respeta durante el sorteo.
+     - Cada tarea recibe una única persona asignada para todos los días en
+       que aplica esa semana (ej. quien cocina el desayuno lo hace todos los
+       días que le tocan; no hay rotación día a día).
+     - La frecuencia de cada tarea (`diario` / `dias` específicos / `semanal`)
+       es una propiedad fija de la tarea, configurada en Ajustes — no se
+       redefine por corrida.
      - El algoritmo de asignación vive en la capa de API de Next.js (no hay
-       backend aparte). Debe ser determinista dado un seed para poder testearlo.
-  2. Calendario semanal: vista de lunes a domingo mostrando, por día, qué tarea le
-     corresponde a quién, a partir del resultado de la asignación del periodo
-     vigente. Debe ser clara y visual (pensada para mostrarse en un
-     refrigerador/tablet o revisarse desde el celular).
-  3. Gestión (CRUD): pantalla para crear, editar y eliminar integrantes (nombre,
-     edad) y tareas (nombre, si es diaria, si es fija por defecto y de quién,
-     peso/dificultad opcional).
+       backend aparte, ver `lib/algorithm/schedule.ts`). Debe ser
+       determinista dado un seed para poder testearlo.
+     - "Reiniciar semana" (misma clave) vuelve a marcar todo como pendiente
+       sin re-sortear quién hace qué.
+  2. Calendario semanal (pestaña "Semana"): vista de lunes a domingo, con
+     modo por día y por persona, mostrando qué tarea le corresponde a quién a
+     partir de la tabla `assignments` vigente. Cada asignación tiene un
+     checkbox de completado (sin restricción de quién lo marca, sin clave).
+     Desde la ficha de una tarea también se puede reasignar el responsable
+     (con clave) o retar a un intercambio ("duelo", sin clave, resuelto con
+     piedra/papel/tijera entre los dos integrantes involucrados).
+  3. Gestión (CRUD): pestaña "Equipo" para crear/editar/eliminar integrantes
+     (nombre, color) y marcar para qué tareas es elegible cada uno; pestaña
+     "Ajustes" para crear/editar/activar/eliminar tareas (nombre, icono,
+     esfuerzo, frecuencia y días, integrantes elegibles) y el nombre del
+     hogar.
 
   Modelo de dominio (un solo hogar, sin autenticación por cuentas; ver
   supabase/schema.sql para el detalle):
-  - members: integrantes del hogar (nombre, edad).
-  - tasks: catálogo de tareas del hogar (nombre, si es diaria, si es fija por
-    defecto y de quién, peso/dificultad opcional).
-  - periods: cada ciclo de asignación definido manualmente (fecha inicio/fin,
-    estado draft/assigned).
-  - period_task_settings: snapshot editable por periodo de qué tareas son fijas
-    y de quién (lo que se revisa/edita antes de correr el sorteo).
-  - assignments: asignación resultante de una tarea a un integrante en un
-    periodo (y día, para tareas de una vez por periodo). Histórico, usado
-    también para el balance acumulado.
+  - household: fila única con el nombre del hogar.
+  - members: integrantes del hogar (nombre, color). Sin edad.
+  - tasks: catálogo de tareas del hogar (nombre, icono, esfuerzo, frecuencia,
+    días, activa/inactiva).
+  - task_eligible_members: qué integrantes pueden recibir cada tarea en el
+    sorteo.
+  - task_conflicts: pares de tareas que nunca deben caer el mismo día en el
+    mismo integrante.
+  - assignments: la semana vigente — una fila por (tarea, día) con el
+    integrante responsable y su estado (pending/completed/sin-responsable).
+    No hay historial: repartir la semana reemplaza toda la tabla.
   No hay login: se entra directo a la app y cada integrante simplemente elige su
   perfil (como un selector de perfil estilo Netflix), sin contraseñas.
 
@@ -82,7 +98,7 @@ rules:
     - Mantener el proposal enfocado en una sola función (sorteo o calendario), no mezclar ambas en un mismo change salvo que el usuario lo pida explícitamente.
   design:
     - Especificar siempre el esquema de tablas de Supabase involucradas (nombre, columnas clave, relaciones) cuando el change toque el modelo de datos, y si requiere cambios a supabase/schema.sql.
-    - Detallar el algoritmo de sorteo/balance en pseudocódigo cuando el change lo modifique, incluyendo cómo se pondera edad y carga acumulada.
+    - Detallar el algoritmo de sorteo/balance en pseudocódigo cuando el change lo modifique, incluyendo cómo se pondera la carga acumulada (el modelo actual no tiene edad ni tareas fijas/variables).
     - Confirmar explícitamente que ninguna credencial (service role key u otra) queda expuesta al cliente cuando el change toque acceso a Supabase.
   tasks:
     - Incluir un paso explícito de verificación con el skill `vercel-react-best-practices` para cualquier tarea que cree o modifique componentes/páginas de Next.js.
