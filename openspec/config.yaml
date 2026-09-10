@@ -3,7 +3,7 @@ schema: spec-driven
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 context: |
-  Producto: "Home Tasks" - app web multi-tenant para repartir las tareas del
+  Producto: "Nest" - app web multi-tenant para repartir las tareas del
   hogar entre los integrantes de una familia. Cualquier persona puede crear
   su propia cuenta/hogar (Supabase Auth, correo + contraseña); cada hogar
   ve y opera solo sobre sus propios datos. Sigue sin haber cuentas por

@@ -1,4 +1,4 @@
-# Home Tasks
+# Nest
 
 App web **multi-tenant** para repartir las tareas del hogar entre los
 integrantes de una familia: cualquier persona puede crear su propio hogar
@@ -15,6 +15,10 @@ tareas/hogar — todo aislado por hogar.
 > - Hasta el change `multi-tenant-households`, la app era de un solo hogar
 >   sin cuentas ("se entra directo"). Ese modelo ya no aplica — ver
 >   "Autenticación y multi-tenancy" abajo.
+> - El producto se llamaba "Home Tasks"; se renombró a **Nest** junto con el
+>   logo/favicon (referencias antiguas al nombre viejo pueden seguir
+>   apareciendo en `git log`, en `openspec/changes/archive/` y en el nombre
+>   del repositorio/carpeta local).
 
 ## Alcance del producto
 

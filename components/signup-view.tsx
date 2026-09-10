@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
+import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,7 @@ export function SignupView() {
 
   return (
     <div className="flex flex-col gap-6">
+      <BrandMark />
       <div>
         <div className="text-2xl font-bold">Crea tu hogar</div>
         <p className="mt-1 text-sm text-muted-foreground">

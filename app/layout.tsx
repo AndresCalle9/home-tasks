@@ -10,7 +10,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Home Tasks",
+  title: "Nest",
   description: "Reparte las tareas del hogar entre todos, semana a semana.",
 };
 
