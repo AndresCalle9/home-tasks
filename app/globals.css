@@ -86,18 +86,6 @@
   --sidebar-accent-foreground: #7766e8;
   --sidebar-border: #ece9e4;
   --sidebar-ring: #7766e8;
-
-  /* @andrescalle9/ui's HubHeader/HubFooter read these — overridden here so
-     the hub chrome uses Nest's own palette instead of Trastero's default
-     orange/teal (see dist/styles.css in the package). Referencing Nest's
-     own custom properties keeps this in sync with light/dark mode without
-     needing a separate override under .dark. */
-  --hub-bg: var(--background);
-  --hub-text: var(--foreground);
-  --hub-accent: var(--accent);
-  --hub-accent-2: var(--primary);
-  --hub-font-heading: var(--font-sans);
-  --hub-font-body: var(--font-sans);
 }
 
 .dark {

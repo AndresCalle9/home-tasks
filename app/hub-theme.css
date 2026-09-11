@@ -1,0 +1,26 @@
+/* Must be imported AFTER both globals.css and @andrescalle9/ui/styles.css
+   in app/layout.tsx. Two separate ordering concerns collide here, and each
+   needs the opposite file first:
+
+   1. Tailwind's cascade layers (theme/base/components/utilities) are
+      ordered by first appearance across the whole bundle. globals.css's
+      own `@import "tailwindcss"` must register that order before the
+      package's styles.css — which only ever declares a bare `utilities`
+      layer (no `base`) — gets a chance to register "utilities" on its
+      own, which would otherwise push "base" (and Preflight's element
+      resets) after "utilities" and make every Tailwind utility class in
+      the app lose to Preflight's plain-element styles.
+   2. The package's own `:root { --hub-bg: ... }` defaults are a plain,
+      unlayered rule, and unlayered rules apply in source order — so this
+      override needs to load LAST to win.
+
+   Splitting the --hub-* override into its own file, imported after the
+   package, satisfies both without reordering anything else. */
+:root {
+  --hub-bg: var(--background);
+  --hub-text: var(--foreground);
+  --hub-accent: var(--accent);
+  --hub-accent-2: var(--primary);
+  --hub-font-heading: var(--font-sans);
+  --hub-font-body: var(--font-sans);
+}
