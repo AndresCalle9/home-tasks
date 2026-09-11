@@ -6,8 +6,12 @@ import { ServiceWorkerRegistration } from "@/components/service-worker-registrat
 import { ToastProvider } from "@/components/toast-provider";
 import { HUB_APPS, HUB_URL } from "@/lib/hub";
 import { SITE_URL } from "@/lib/site";
-import "@andrescalle9/ui/styles.css";
+// Order matters: globals.css must register Tailwind's cascade-layer order
+// before the package's styles.css gets a chance to (see hub-theme.css for
+// why), and hub-theme.css must come after both — see that file's header.
 import "./globals.css";
+import "@andrescalle9/ui/styles.css";
+import "./hub-theme.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-sans",
