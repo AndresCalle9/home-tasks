@@ -64,7 +64,9 @@ export const config = {
     // manifest.webmanifest and sw.js must stay reachable without a
     // session — the browser/OS fetches them (install prompts, PWA
     // metadata) without auth context, including from the signed-out
-    // /login and /signup pages.
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // /login and /signup pages. robots.txt and sitemap.xml must stay
+    // reachable without a session for the same reason — search engine
+    // crawlers never have one.
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
