@@ -1,7 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { HubFooter, HubHeader } from "@andrescalle9/ui";
+import { JsonLd } from "@/components/json-ld";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { ToastProvider } from "@/components/toast-provider";
+import { HUB_APPS, HUB_URL } from "@/lib/hub";
+import { SITE_URL } from "@/lib/site";
+import "@andrescalle9/ui/styles.css";
 import "./globals.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -11,12 +16,25 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Nest",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Nest",
+    template: "%s · Nest",
+  },
   description: "Reparte las tareas del hogar entre todos, semana a semana.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Nest",
+  },
+  openGraph: {
+    siteName: "Nest",
+    locale: "es",
+    type: "website",
+    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
   },
 };
 
@@ -35,8 +53,11 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${plusJakartaSans.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-background">
+        <JsonLd />
         <ServiceWorkerRegistration />
+        <HubHeader hubUrl={HUB_URL} appName="Nest" />
         <ToastProvider>{children}</ToastProvider>
+        <HubFooter apps={HUB_APPS} />
       </body>
     </html>
   );

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { EquipoView } from "@/components/equipo-view";
 import { getCurrentHousehold } from "@/lib/auth/session";
 import { listMembers } from "@/lib/data/members";
@@ -5,6 +6,13 @@ import { listTasks } from "@/lib/data/tasks";
 import { listAssignments } from "@/lib/data/assignments";
 
 export const dynamic = "force-dynamic";
+
+export function generateMetadata(): Metadata {
+  return {
+    title: "Equipo",
+    description: "Integrantes del hogar y las tareas para las que son elegibles.",
+  };
+}
 
 export default async function EquipoPage() {
   const { id: householdId } = await getCurrentHousehold();
