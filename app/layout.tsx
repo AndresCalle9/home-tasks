@@ -61,7 +61,17 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
         <HubHeader hubUrl={HUB_URL} appName="Nest" />
         <ToastProvider>{children}</ToastProvider>
-        <HubFooter apps={HUB_APPS} />
+        {/* The "(app)" route group's BottomNav is fixed to the viewport
+            bottom (see components/bottom-nav.tsx), so it permanently
+            covers whatever renders in that same strip — including
+            HubFooter, since it comes after {children} here. This trailing
+            space matches BottomNav's own height reservation (pb-24 on its
+            <main>) so scrolling all the way down clears the footer above
+            it instead of hiding it underneath. Harmless on signed-out
+            pages, which have no BottomNav to clear. */}
+        <div className="pb-24">
+          <HubFooter apps={HUB_APPS} />
+        </div>
       </body>
     </html>
   );
